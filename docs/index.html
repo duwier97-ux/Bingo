@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de ingreso</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f1f5f9; }
+    header { padding: 14px 16px; font-size: 18px; font-weight: 600; background: #1e293b; }
+    main { padding: 16px; max-width: 520px; margin: 0 auto; }
+    button { width: 100%; padding: 14px; font-size: 16px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; margin-top: 10px; }
+    button.sec { background: #334155; }
+    input[type=text], input[type=password] { width: 100%; padding: 14px; font-size: 18px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #fff; }
+    #lector { width: 100%; margin-top: 12px; border-radius: 12px; overflow: hidden; }
+    #lector video { width: 100% !important; height: auto !important; }
+    #resultado { display: none; margin-top: 14px; padding: 18px; border-radius: 12px; font-size: 18px; text-align: center; }
+    #resultado.ok { background: #16a34a; }
+    #resultado.warn { background: #d97706; }
+    #resultado.error { background: #dc2626; }
+    #resultado.info { background: #334155; }
+    #resultado .nombre { font-size: 24px; font-weight: 700; margin: 6px 0; }
+    #resultado small { display: block; opacity: .9; font-size: 15px; }
+    #contador, #pinError { margin-top: 14px; font-size: 14px; opacity: .85; }
+    #pinError { color: #fca5a5; opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>Control de ingreso</header>
+  <main>
+    <section id="login">
+      <p>Escribe el PIN del evento</p>
+      <input type="password" id="pin" inputmode="numeric" autocomplete="off">
+      <button id="btnEntrar" onclick="entrar()">Entrar</button>
+      <p id="pinError"></p>
+    </section>
+
+    <section id="app" style="display:none">
+      <button id="btnCamara" onclick="alternarCamara()">Abrir cámara</button>
+      <div id="lector"></div>
+      <div id="lectorFoto" style="display:none"></div>
+
+      <input type="file" id="foto" accept="image/*" capture="environment" style="display:none" onchange="leerFoto(this)">
+      <button class="sec" onclick="document.getElementById('foto').click()">Tomar foto del QR (respaldo)</button>
+
+      <input type="text" id="manual" placeholder="o escribe el código (PMB-000-X)" autocapitalize="characters" autocomplete="off" style="margin-top:10px">
+      <button class="sec" onclick="registrarManual()">Registrar código escrito</button>
+
+      <div id="resultado"></div>
+      <p id="contador"></p>
+    </section>
+  </main>
+
+  <script>
+    // URL del despliegue de Apps Script (termina en /exec, NO /dev)
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzcTqnNERnPIBRAhMR-EiVYOlCC26XBM8rbkWK1nVx3XOcs_ETcaOi1EVIS2GtLcl1m/exec';
+
+    var pin = '';
+    var scanner = null;
+    var camaraActiva = false;
+    var ocupado = false;
+    var ultimo = '';
+    var ultimoT = 0;
+    var contador = 0;
+
+    var CONFIG_LECTOR = {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      verbose: false
+    };
+
+    function $(id) { return document.getElementById(id); }
+
+    // ---------- API (Apps Script) ----------
+    // text/plain = "petición simple": sin preflight OPTIONS, que Apps Script no soporta.
+    function llamarApi(datos) {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 20000);
+      return fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(datos),
+        signal: ctrl.signal
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).finally(function () { clearTimeout(t); });
+    }
+
+    function textoError(e) {
+      if (e && e.name === 'AbortError') return 'La hoja tardó demasiado. Intenta de nuevo.';
+      return String((e && e.message) || e || 'Intenta de nuevo');
+    }
+
+    // ---------- Login ----------
+    async function entrar() {
+      var v = $('pin').value.trim();
+      if (!v) return;
+      $('btnEntrar').disabled = true;
+      $('pinError').textContent = 'Verificando...';
+      try {
+        var r = await llamarApi({ accion: 'validarPin', pin: v });
+        if (r.estado !== 'pin_ok') {
+          $('pinError').textContent = 'PIN incorrecto';
+          return;
+        }
+        pin = v;
+        $('pinError').textContent = '';
+        $('login').style.display = 'none';
+        $('app').style.display = 'block';
+      } catch (e) {
+        $('pinError').textContent = 'Sin conexión con la hoja: ' + textoError(e);
+      } finally {
+        $('btnEntrar').disabled = false;
+      }
+    }
+
+    // ---------- Cámara en vivo (alta resolución) ----------
+    function cajaQr(anchoVideo, altoVideo) {
+      var lado = Math.max(120, Math.floor(Math.min(anchoVideo, altoVideo) * 0.75));
+      return { width: lado, height: lado };
+    }
+
+    async function alternarCamara() {
+      if (camaraActiva) { await detenerCamara(); return; }
+      try {
+        scanner = new Html5Qrcode('lector', CONFIG_LECTOR);
+        await scanner.start(
+          { facingMode: 'environment' }, // obligatorio, pero se ignora porque hay videoConstraints
+          {
+            fps: 15,
+            qrbox: cajaQr,
+            videoConstraints: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            }
+          },
+          function (texto) { procesar(texto, false); },
+          function () {}
+        );
+        camaraActiva = true;
+        $('btnCamara').textContent = 'Cerrar cámara';
+        enfocarContinuo();
+      } catch (e) {
+        scanner = null;
+        var detalle = (e && e.name) ? e.name + ': ' + (e.message || '') : String(e);
+        mostrar('error', 'No se pudo abrir la cámara', '', detalle + ' — Usa "Tomar foto" o escribe el código.');
+      }
+    }
+
+    function enfocarContinuo() {
+      try {
+        var caps = scanner.getRunningTrackCapabilities();
+        if (caps && caps.focusMode && caps.focusMode.indexOf('continuous') >= 0) {
+          scanner.applyVideoConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+        }
+      } catch (e) {}
+    }
+
+    function pausarCamara() {
+      try { if (camaraActiva && scanner) scanner.pause(true); } catch (e) {}
+    }
+
+    function reanudarCamara() {
+      try { if (camaraActiva && scanner) scanner.resume(); } catch (e) {}
+    }
+
+    async function detenerCamara() {
+      try {
+        if (scanner) { await scanner.stop(); scanner.clear(); }
+      } catch (e) {}
+      scanner = null;
+      camaraActiva = false;
+      $('btnCamara').textContent = 'Abrir cámara';
+    }
+
+    // ---------- Foto (respaldo) ----------
+    function reducirImagen(archivo, maxLado) {
+      if (!window.createImageBitmap) return Promise.resolve(archivo);
+      return createImageBitmap(archivo, { imageOrientation: 'from-image' }).then(function (bmp) {
+        var escala = Math.min(1, maxLado / Math.max(bmp.width, bmp.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(bmp.width * escala);
+        c.height = Math.round(bmp.height * escala);
+        c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+        return new Promise(function (ok) {
+          c.toBlob(function (b) {
+            ok(b ? new File([b], 'qr.jpg', { type: 'image/jpeg' }) : archivo);
+          }, 'image/jpeg', 0.92);
+        });
+      }).catch(function () { return archivo; });
+    }
+
+    async function leerFoto(input) {
+      var archivo = input.files && input.files[0];
+      input.value = '';
+      if (!archivo) return;
+      mostrar('info', 'Leyendo foto...', '', '');
+      var lector = new Html5Qrcode('lectorFoto', CONFIG_LECTOR);
+      try {
+        var imagen = await reducirImagen(archivo, 1600);
+        var texto = await lector.scanFile(imagen, false);
+        procesar(texto, true);
+      } catch (e) {
+        mostrar('error', 'No se pudo leer el QR', '', 'Mejor usa "Abrir cámara" (escaneo en vivo).');
+      } finally {
+        try { lector.clear(); } catch (e) {}
+      }
+    }
+
+    // Antes de abrir la app de cámara, libera la cámara en vivo (algunos Android no la comparten).
+    $('foto').addEventListener('click', function () { if (camaraActiva) detenerCamara(); });
+
+    // ---------- Manual ----------
+    function registrarManual() {
+      var v = $('manual').value;
+      $('manual').value = '';
+      procesar(v, true);
+    }
+
+    // ---------- Registro ----------
+    async function procesar(texto, forzar) {
+      var codigo = String(texto || '').trim().toUpperCase();
+      if (!codigo || ocupado) return;
+      var ahora = Date.now();
+      if (!forzar && codigo === ultimo && ahora - ultimoT < 4000) return;
+      ultimo = codigo;
+      ultimoT = ahora;
+      ocupado = true;
+      pausarCamara();
+      mostrar('info', 'Consultando...', codigo, '');
+      try {
+        var r = await llamarApi({ accion: 'registrar', codigo: codigo, pin: pin });
+        respuesta(r);
+      } catch (e) {
+        mostrar('error', 'Error de conexión', '', textoError(e));
+      } finally {
+        ocupado = false;
+        setTimeout(reanudarCamara, 1200);
+      }
+    }
+
+    function respuesta(r) {
+      if (navigator.vibrate) navigator.vibrate(r.estado === 'ok' ? 120 : [120, 80, 120]);
+      if (r.estado === 'ok') {
+        contador++;
+        $('contador').textContent = 'Ingresos registrados en este celular: ' + contador;
+        mostrar('ok', '✔ Ingreso registrado', bonito(r.nombre), r.codigo + ' · ' + r.hora);
+      } else if (r.estado === 'repetido') {
+        mostrar('warn', 'Ya había ingresado', bonito(r.nombre), r.codigo + (r.hora ? ' · ' + r.hora : ''));
+      } else if (r.estado === 'no_existe') {
+        mostrar('error', 'Código no encontrado', r.codigo || '', 'Verifica en la lista impresa');
+      } else if (r.estado === 'duplicado') {
+        mostrar('error', 'Código repetido en la base', r.codigo || '', 'Revisa la hoja antes de dejarlo pasar');
+      } else if (r.estado === 'pin') {
+        detenerCamara();
+        pin = '';
+        $('app').style.display = 'none';
+        $('login').style.display = 'block';
+        $('pinError').textContent = 'PIN incorrecto';
+      } else {
+        mostrar('error', 'Error en la hoja', '', r.mensaje || 'Intenta de nuevo');
+      }
+    }
+
+    function bonito(n) {
+      return String(n || '').toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); });
+    }
+
+    function mostrar(clase, titulo, nombre, detalle) {
+      var el = $('resultado');
+      el.className = clase;
+      el.style.display = 'block';
+      el.textContent = '';
+      var t = document.createElement('div');
+      t.textContent = titulo;
+      el.appendChild(t);
+      if (nombre) {
+        var n = document.createElement('div');
+        n.className = 'nombre';
+        n.textContent = nombre;
+        el.appendChild(n);
+      }
+      if (detalle) {
+        var d = document.createElement('small');
+        d.textContent = detalle;
+        el.appendChild(d);
+      }
+    }
+  </script>
+</body>
+</html>
