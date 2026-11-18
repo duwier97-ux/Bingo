@@ -3,31 +3,95 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Control de ingreso</title>
+  <title>Gran Bingo Municipal · 22 de noviembre de 2026</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f1f5f9; }
-    header { padding: 14px 16px; font-size: 18px; font-weight: 600; background: #1e293b; }
-    main { padding: 16px; max-width: 520px; margin: 0 auto; }
-    button { width: 100%; padding: 14px; font-size: 16px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; margin-top: 10px; }
-    button.sec { background: #334155; }
-    input[type=text], input[type=password] { width: 100%; padding: 14px; font-size: 18px; border-radius: 10px; border: 1px solid #475569; background: #1e293b; color: #fff; }
+    html { background: #0b1026; }
+    body {
+      margin: 0; min-height: 100vh; position: relative;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #f1f5f9;
+      background-color: #0b1026;
+      background-image:
+        radial-gradient(ellipse at 50% -10%, rgba(124, 58, 237, .45), transparent 60%),
+        radial-gradient(ellipse at 100% 100%, rgba(225, 29, 72, .28), transparent 55%),
+        radial-gradient(ellipse at 0% 80%, rgba(37, 99, 235, .25), transparent 50%),
+        linear-gradient(rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(160deg, #1e1b4b 0%, #0b1026 55%, #1a0b2e 100%);
+      background-size: auto, auto, auto, 56px 56px, 56px 56px, auto;
+      background-attachment: fixed;
+    }
+    .fondo-bingo { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .55; }
+    header, main { position: relative; z-index: 1; }
+    header {
+      padding: 16px 16px 14px; text-align: center;
+      background: linear-gradient(90deg, rgba(37, 99, 235, .85), rgba(124, 58, 237, .85), rgba(225, 29, 72, .85));
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .45);
+      border-bottom: 3px solid #fbbf24;
+    }
+    header .titulo { font-size: 24px; font-weight: 800; letter-spacing: .5px; text-shadow: 0 2px 6px rgba(0, 0, 0, .5); line-height: 1.15; }
+    header .subtitulo { margin-top: 4px; font-size: 15px; font-weight: 600; color: #fde68a; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+    header .bolitas { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+    header .bolitas span {
+      width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: #0f172a;
+      background: radial-gradient(circle at 50% 50%, #fff 0 45%, transparent 47%), var(--c);
+      box-shadow: inset -3px -3px 5px rgba(0, 0, 0, .3), 0 2px 4px rgba(0, 0, 0, .4);
+    }
+    main {
+      margin: 14px 10px 24px; padding: 18px 16px; max-width: 520px;
+      background: rgba(15, 23, 42, .86);
+      border: 1px solid rgba(251, 191, 36, .35); border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+      -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    }
+    @media (min-width: 560px) { main { margin: 24px auto; } header .titulo { font-size: 30px; } }
+    main p { margin-top: 0; }
+    button {
+      width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border: 0; border-radius: 10px;
+      background: #2563eb; color: #fff; margin-top: 10px;
+      box-shadow: 0 3px 0 #1e40af, 0 4px 10px rgba(0, 0, 0, .35);
+    }
+    button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1e40af; }
+    button:disabled { opacity: .6; }
+    button.sec { background: #334155; box-shadow: 0 3px 0 #1e293b, 0 4px 10px rgba(0, 0, 0, .35); }
+    input[type=text], input[type=password] { width: 100%; padding: 14px; font-size: 18px; border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff; }
+    input[type=text]:focus, input[type=password]:focus { outline: 2px solid #fbbf24; outline-offset: 1px; }
     #lector { width: 100%; margin-top: 12px; border-radius: 12px; overflow: hidden; }
     #lector video { width: 100% !important; height: auto !important; }
-    #resultado { display: none; margin-top: 14px; padding: 18px; border-radius: 12px; font-size: 18px; text-align: center; }
+    #resultado { display: none; margin-top: 14px; padding: 18px; border-radius: 12px; font-size: 18px; text-align: center; color: #fff; border: 2px solid rgba(255, 255, 255, .35); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
     #resultado.ok { background: #16a34a; }
     #resultado.warn { background: #d97706; }
     #resultado.error { background: #dc2626; }
     #resultado.info { background: #334155; }
     #resultado .nombre { font-size: 24px; font-weight: 700; margin: 6px 0; }
-    #resultado small { display: block; opacity: .9; font-size: 15px; }
-    #contador, #pinError { margin-top: 14px; font-size: 14px; opacity: .85; }
+    #resultado small { display: block; opacity: .95; font-size: 15px; }
+    #contador, #pinError { margin-top: 14px; font-size: 14px; opacity: .9; }
     #pinError { color: #fca5a5; opacity: 1; }
   </style>
 </head>
 <body>
-  <header>Control de ingreso</header>
+  <svg class="fondo-bingo" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" font-family="system-ui, sans-serif">
+    <defs><radialGradient id="bingoBrillo" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
+    <svg x="82%" y="30%" overflow="visible"><g transform="rotate(14) translate(-75 -90)" font-weight="800" text-anchor="middle"><rect x="-6" y="-6" width="162" height="192" rx="10" fill="#f8fafc" fill-opacity=".1" stroke="#fbbf24" stroke-opacity=".6" stroke-width="2"/><text x="15" y="22" font-size="20" fill="#2563eb">B</text><text x="45" y="22" font-size="20" fill="#dc2626">I</text><text x="75" y="22" font-size="20" fill="#7c3aed">N</text><text x="105" y="22" font-size="20" fill="#16a34a">G</text><text x="135" y="22" font-size="20" fill="#f59e0b">O</text><rect x="0" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">3</text><circle cx="15" cy="45" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="30" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">18</text><rect x="60" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">31</text><rect x="90" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">47</text><circle cx="105" cy="45" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="120" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">62</text><rect x="0" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">9</text><rect x="30" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">22</text><rect x="60" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">40</text><circle cx="75" cy="75" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="90" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">51</text><rect x="120" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">70</text><rect x="0" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">14</text><rect x="30" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">27</text><circle cx="45" cy="105" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="60" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">★</text><rect x="90" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">58</text><rect x="120" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">66</text><circle cx="135" cy="105" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="0" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">5</text><circle cx="15" cy="135" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="30" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">16</text><rect x="60" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">44</text><rect x="90" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">49</text><circle cx="105" cy="135" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="120" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">73</text><rect x="0" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">11</text><rect x="30" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">29</text><rect x="60" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">35</text><circle cx="75" cy="165" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="90" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">55</text><rect x="120" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">61</text></g></svg>
+    <svg x="16%" y="68%" overflow="visible"><g transform="rotate(-10) translate(-75 -90)" font-weight="800" text-anchor="middle"><rect x="-6" y="-6" width="162" height="192" rx="10" fill="#f8fafc" fill-opacity=".1" stroke="#fbbf24" stroke-opacity=".6" stroke-width="2"/><text x="15" y="22" font-size="20" fill="#2563eb">B</text><text x="45" y="22" font-size="20" fill="#dc2626">I</text><text x="75" y="22" font-size="20" fill="#7c3aed">N</text><text x="105" y="22" font-size="20" fill="#16a34a">G</text><text x="135" y="22" font-size="20" fill="#f59e0b">O</text><rect x="0" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">3</text><circle cx="15" cy="45" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="30" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">18</text><rect x="60" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">31</text><rect x="90" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">47</text><circle cx="105" cy="45" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="120" y="30" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="50" font-size="13" fill="#e2e8f0" fill-opacity=".75">62</text><rect x="0" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">9</text><rect x="30" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">22</text><rect x="60" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">40</text><circle cx="75" cy="75" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="90" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">51</text><rect x="120" y="60" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="80" font-size="13" fill="#e2e8f0" fill-opacity=".75">70</text><rect x="0" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">14</text><rect x="30" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">27</text><circle cx="45" cy="105" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="60" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">★</text><rect x="90" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">58</text><rect x="120" y="90" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="110" font-size="13" fill="#e2e8f0" fill-opacity=".75">66</text><circle cx="135" cy="105" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="0" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">5</text><circle cx="15" cy="135" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="30" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">16</text><rect x="60" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">44</text><rect x="90" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">49</text><circle cx="105" cy="135" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="120" y="120" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="140" font-size="13" fill="#e2e8f0" fill-opacity=".75">73</text><rect x="0" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="15" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">11</text><rect x="30" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="45" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">29</text><rect x="60" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="75" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">35</text><circle cx="75" cy="165" r="11" fill="#dc2626" fill-opacity=".45"/><rect x="90" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="105" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">55</text><rect x="120" y="150" width="30" height="30" fill="none" stroke="#e2e8f0" stroke-opacity=".45"/><text x="135" y="170" font-size="13" fill="#e2e8f0" fill-opacity=".75">61</text></g></svg>
+    <svg x="6%" y="16%" overflow="visible"><g transform="rotate(-12)"><circle r="30" fill="#2563eb"/><circle r="30" fill="url(#bingoBrillo)"/><circle r="17" fill="#fff"/><text y="-6" text-anchor="middle" font-size="9" font-weight="800" fill="#2563eb">B</text><text y="9" text-anchor="middle" font-size="15" font-weight="800" fill="#0f172a">7</text></g></svg>
+    <svg x="92%" y="12%" overflow="visible"><g transform="rotate(10)"><circle r="34" fill="#f59e0b"/><circle r="34" fill="url(#bingoBrillo)"/><circle r="20" fill="#fff"/><text y="-7" text-anchor="middle" font-size="10" font-weight="800" fill="#f59e0b">O</text><text y="10" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">68</text></g></svg>
+    <svg x="88%" y="42%" overflow="visible"><g transform="rotate(-6)"><circle r="26" fill="#16a34a"/><circle r="26" fill="url(#bingoBrillo)"/><circle r="15" fill="#fff"/><text y="-5" text-anchor="middle" font-size="8" font-weight="800" fill="#16a34a">G</text><text y="8" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a">52</text></g></svg>
+    <svg x="10%" y="48%" overflow="visible"><g transform="rotate(8)"><circle r="24" fill="#dc2626"/><circle r="24" fill="url(#bingoBrillo)"/><circle r="14" fill="#fff"/><text y="-5" text-anchor="middle" font-size="7" font-weight="800" fill="#dc2626">I</text><text y="7" text-anchor="middle" font-size="12" font-weight="800" fill="#0f172a">23</text></g></svg>
+    <svg x="6%" y="82%" overflow="visible"><g transform="rotate(-18)"><circle r="34" fill="#7c3aed"/><circle r="34" fill="url(#bingoBrillo)"/><circle r="20" fill="#fff"/><text y="-7" text-anchor="middle" font-size="10" font-weight="800" fill="#7c3aed">N</text><text y="10" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">41</text></g></svg>
+    <svg x="50%" y="94%" overflow="visible"><g transform="rotate(14)"><circle r="28" fill="#2563eb"/><circle r="28" fill="url(#bingoBrillo)"/><circle r="16" fill="#fff"/><text y="-6" text-anchor="middle" font-size="8" font-weight="800" fill="#2563eb">B</text><text y="8" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">12</text></g></svg>
+    <svg x="90%" y="78%" overflow="visible"><g transform="rotate(-10)"><circle r="30" fill="#f59e0b"/><circle r="30" fill="url(#bingoBrillo)"/><circle r="17" fill="#fff"/><text y="-6" text-anchor="middle" font-size="9" font-weight="800" fill="#f59e0b">O</text><text y="9" text-anchor="middle" font-size="15" font-weight="800" fill="#0f172a">75</text></g></svg>
+    <svg x="30%" y="6%" overflow="visible"><g transform="rotate(0)"><circle r="20" fill="#dc2626"/><circle r="20" fill="url(#bingoBrillo)"/><circle r="12" fill="#fff"/><text y="-4" text-anchor="middle" font-size="6" font-weight="800" fill="#dc2626">I</text><text y="6" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">19</text></g></svg>
+    <svg x="70%" y="96%" overflow="visible"><g transform="rotate(6)"><circle r="22" fill="#16a34a"/><circle r="22" fill="url(#bingoBrillo)"/><circle r="13" fill="#fff"/><text y="-4" text-anchor="middle" font-size="7" font-weight="800" fill="#16a34a">G</text><text y="7" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">60</text></g></svg>
+    <svg x="96%" y="62%" overflow="visible"><g transform="rotate(12)"><circle r="20" fill="#7c3aed"/><circle r="20" fill="url(#bingoBrillo)"/><circle r="12" fill="#fff"/><text y="-4" text-anchor="middle" font-size="6" font-weight="800" fill="#7c3aed">N</text><text y="6" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">33</text></g></svg>
+  </svg>
+  <header>
+    <div class="titulo">Gran Bingo Municipal</div>
+    <div class="subtitulo">22 de noviembre de 2026</div>
+    <div class="bolitas" aria-hidden="true"><span style="--c:#2563eb">B</span><span style="--c:#dc2626">I</span><span style="--c:#7c3aed">N</span><span style="--c:#16a34a">G</span><span style="--c:#f59e0b">O</span></div>
+  </header>
   <main>
     <section id="login">
       <p>Escribe el PIN del evento</p>
