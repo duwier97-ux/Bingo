@@ -578,6 +578,9 @@
       } else if (e === 'tabla_repetida') {
         mostrarFinal('error', 'La Tabla N° ' + r.tabla + ' ya está asignada', bonito(r.nombre),
           'La tiene ' + r.codigo + '. No se registró: escribe otro número.', volverAPedirTabla);
+      } else if (e === 'tabla_inexistente') {
+        mostrarFinal('error', 'Esa tabla no existe. Revisa el número', '',
+          'Tabla N° ' + String(r.tabla).padStart(4, '0') + ' no está entre las tablas del bingo. No se registró.', volverAPedirTabla);
       } else if (e === 'tabla_invalida') {
         mostrarFinal('error', 'Número de tabla no válido', '', r.mensaje || 'Escribe un solo número entero.', volverAPedirTabla);
       } else if (e === 'no_existe') {

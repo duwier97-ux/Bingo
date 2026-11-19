@@ -184,6 +184,9 @@ function registrarIngreso_(codigo, tabla) {
     return { estado: 'tabla_invalida', codigo: codigoLimpio, mensaje: 'Escribe un solo número de tabla, entero y mayor que 0.' };
   }
 
+  // Tablas existentes (hoja "Tablas"). Se lee antes del lock: el ingreso nunca cambia esa hoja.
+  const existentes = numerosDeTablas_();
+
   const lock = LockService.getScriptLock();
   lock.waitLock(15000); // evita choques si dos celulares escanean al mismo tiempo (si se agota, doPost devuelve estado 'error')
 
@@ -198,6 +201,11 @@ function registrarIngreso_(codigo, tabla) {
     // Se vuelve a comprobar no_existe / duplicado / repetido.
     const r = evaluarCodigo_(datos, codigoLimpio);
     if (r.estado !== 'pendiente') return r;
+
+    // La tabla debe existir en la hoja "Tablas" (activa o no). Sin hoja o vacía, no se bloquea.
+    if (existentes && !existentes[numTabla]) {
+      return { estado: 'tabla_inexistente', tabla: numTabla, codigo: codigoLimpio, mensaje: 'Esa tabla no existe. Revisa el número' };
+    }
 
     // Un número de tabla no puede estar asignado a otra persona.
     for (let i = 0; i < datos.filas.length; i++) {
@@ -222,6 +230,23 @@ function registrarIngreso_(codigo, tabla) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// Números de tabla de la hoja "Tablas" ({ 762: true, ... }), activas o no.
+// null si la hoja no existe, está vacía o no tiene la columna "Tabla": en ese caso el ingreso no se bloquea.
+function numerosDeTablas_() {
+  const hoja = SpreadsheetApp.openById(ID_HOJA).getSheetByName(HOJA_TABLAS);
+  if (!hoja || hoja.getLastRow() < 2 || hoja.getLastColumn() < 1) return null;
+  const enc = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0].map(normalizarTexto_);
+  const c = enc.indexOf('tabla');
+  if (c < 0) return null;
+  const mapa = {};
+  let hay = false;
+  hoja.getRange(2, c + 1, hoja.getLastRow() - 1, 1).getValues().forEach(function (f) {
+    const t = limpiarTabla_(f[0]);
+    if (t !== null) { mapa[t] = true; hay = true; }
+  });
+  return hay ? mapa : null;
 }
 
 // =====================================================================
@@ -548,7 +573,8 @@ function confirmarGanador_(tabla) {
       balotas: e.balotas.length, conBalota: g.conBalota, hora: formatearHora_(new Date())
     };
     e.ganadores.push(registro);
-    e.anuncio = registro;
+    // El anuncio lleva además el cartón (grilla y figura) para que la TV lo dibuje; el historial no.
+    e.anuncio = Object.assign({}, registro, { grilla: g.grilla, mascara: g.mascara });
     return { extra: { ganador: registro } };
   });
   if (registro) {
