@@ -60,15 +60,49 @@
     input[type=text]:focus, input[type=password]:focus { outline: 2px solid #fbbf24; outline-offset: 1px; }
     #lector { width: 100%; margin-top: 12px; border-radius: 12px; overflow: hidden; }
     #lector video { width: 100% !important; height: auto !important; }
-    #resultado { display: none; margin-top: 14px; padding: 18px; border-radius: 12px; font-size: 18px; text-align: center; color: #fff; border: 2px solid rgba(255, 255, 255, .35); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+    input[type=number] {
+      width: 100%; padding: 12px; font-size: 28px; font-weight: 800; text-align: center; letter-spacing: 1px;
+      border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff;
+      -moz-appearance: textfield; appearance: textfield;
+    }
+    input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number]:focus { outline: 2px solid #fbbf24; outline-offset: 1px; }
+    #manual { letter-spacing: 1px; font-weight: 600; }
+    #manualError, #tablaError { min-height: 1.2em; margin: 6px 0 0; font-size: 14px; color: #fca5a5; }
+    #pinError { margin-top: 14px; font-size: 14px; color: #fca5a5; }
+
+    /* Resumen del evento */
+    #resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #resumen .cifra {
+      padding: 10px 8px; border-radius: 12px; text-align: center;
+      background: rgba(30, 41, 59, .9); border: 1px solid rgba(251, 191, 36, .45);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), 0 4px 10px rgba(0, 0, 0, .3);
+    }
+    #resumen .cifra span { display: block; font-size: 13px; font-weight: 600; color: #fde68a; line-height: 1.2; }
+    #resumen .cifra strong { display: block; margin-top: 2px; font-size: 32px; font-weight: 800; text-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+    #resumen .cifra.si strong { color: #86efac; }
+    #resumenEstado { margin: 6px 0 0; font-size: 12px; opacity: .7; text-align: center; }
+
+    /* Panel superpuesto sobre la cámara (la cámara sigue abierta y pausada detrás) */
+    #capa {
+      position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center;
+      padding: 16px; background: rgba(2, 6, 23, .5);
+    }
+    #capa.abierta { display: flex; }
+    #capa .panel {
+      width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 14px;
+      border-radius: 16px; background: rgba(15, 23, 42, .97); border: 2px solid #fbbf24;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .65);
+    }
+    #resultado { padding: 18px; border-radius: 12px; font-size: 18px; text-align: center; color: #fff; border: 2px solid rgba(255, 255, 255, .35); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
     #resultado.ok { background: #16a34a; }
     #resultado.warn { background: #d97706; }
     #resultado.error { background: #dc2626; }
     #resultado.info { background: #334155; }
-    #resultado .nombre { font-size: 24px; font-weight: 700; margin: 6px 0; }
+    #resultado .nombre { font-size: 24px; font-weight: 700; margin: 6px 0; overflow-wrap: anywhere; }
     #resultado small { display: block; opacity: .95; font-size: 15px; }
-    #contador, #pinError { margin-top: 14px; font-size: 14px; opacity: .9; }
-    #pinError { color: #fca5a5; opacity: 1; }
+    #formTabla label { display: block; margin: 14px 0 6px; font-size: 16px; font-weight: 700; color: #fde68a; text-align: center; }
+    #formTabla .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   </style>
 </head>
 <body>
@@ -101,6 +135,12 @@
     </section>
 
     <section id="app" style="display:none">
+      <div id="resumen">
+        <div class="cifra si"><span>Asistentes registrados:</span> <strong id="asistentes">…</strong></div>
+        <div class="cifra"><span>Pendientes por ingresar:</span> <strong id="pendientes">…</strong></div>
+      </div>
+      <p id="resumenEstado"></p>
+
       <button id="btnCamara" onclick="alternarCamara()">Abrir cámara</button>
       <div id="lector"></div>
       <div id="lectorFoto" style="display:none"></div>
@@ -108,13 +148,27 @@
       <input type="file" id="foto" accept="image/*" capture="environment" style="display:none" onchange="leerFoto(this)">
       <button class="sec" onclick="document.getElementById('foto').click()">Tomar foto del QR (respaldo)</button>
 
-      <input type="text" id="manual" placeholder="o escribe el código (PMB-000-X)" autocapitalize="characters" autocomplete="off" style="margin-top:10px">
-      <button class="sec" onclick="registrarManual()">Registrar código escrito</button>
-
-      <div id="resultado"></div>
-      <p id="contador"></p>
+      <input type="text" id="manual" value="PMB-" placeholder="PMB-000-X" maxlength="9" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" style="margin-top:10px">
+      <p id="manualError"></p>
+      <button class="sec" onclick="registrarManual()">Buscar código escrito</button>
     </section>
   </main>
+
+  <div id="capa" role="dialog" aria-modal="true" aria-labelledby="resultado">
+    <div class="panel">
+      <div id="resultado" aria-live="assertive"></div>
+      <div id="formTabla" style="display:none">
+        <label for="tabla">Tabla N°</label>
+        <input type="number" id="tabla" inputmode="numeric" pattern="[0-9]*" min="1" step="1" autocomplete="off">
+        <p id="tablaError"></p>
+        <div class="botones">
+          <button class="sec" id="btnCancelar" onclick="cerrarCapa()">Cancelar</button>
+          <button id="btnRegistrar" onclick="confirmarRegistro()">Registrar</button>
+        </div>
+      </div>
+      <button id="btnEntendido" style="display:none" onclick="entendido()">Entendido</button>
+    </div>
+  </div>
 
   <script>
     // URL del despliegue de Apps Script (termina en /exec, NO /dev)
@@ -123,10 +177,18 @@
     var pin = '';
     var scanner = null;
     var camaraActiva = false;
-    var ocupado = false;
+    var ocupado = false;          // hay una consulta en curso o el panel está abierto
     var ultimo = '';
     var ultimoT = 0;
-    var contador = 0;
+    var actual = null;            // { codigo, nombre } de la persona que está en el panel
+    var alEntendido = null;       // qué hacer al pulsar "Entendido" (por defecto, cerrar)
+    var temporizador = null;      // cierre automático de los resultados verdes
+    var intervaloResumen = null;
+    var pidiendoResumen = false;
+    var repetirResumen = false;
+
+    var PREFIJO = 'PMB-';
+    var FORMATO = /^PMB-\d{3}-[A-Z]$/;
 
     var CONFIG_LECTOR = {
       formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
@@ -173,10 +235,60 @@
         $('pinError').textContent = '';
         $('login').style.display = 'none';
         $('app').style.display = 'block';
+        iniciarResumen();
       } catch (e) {
         $('pinError').textContent = 'Sin conexión con la hoja: ' + textoError(e);
       } finally {
         $('btnEntrar').disabled = false;
+      }
+    }
+
+    function pinRechazado() {
+      detenerResumen();
+      clearTimeout(temporizador);
+      $('capa').classList.remove('abierta');
+      actual = null;
+      alEntendido = null;
+      ocupado = false;
+      detenerCamara();
+      pin = '';
+      $('app').style.display = 'none';
+      $('login').style.display = 'block';
+      $('pinError').textContent = 'PIN incorrecto';
+    }
+
+    // ---------- Resumen (al entrar, después de cada registro y cada 30 s) ----------
+    function iniciarResumen() {
+      actualizarResumen();
+      if (!intervaloResumen) intervaloResumen = setInterval(actualizarResumen, 30000);
+    }
+
+    function detenerResumen() {
+      if (intervaloResumen) clearInterval(intervaloResumen);
+      intervaloResumen = null;
+    }
+
+    async function actualizarResumen() {
+      if (!pin) return;
+      if (pidiendoResumen) { repetirResumen = true; return; }
+      pidiendoResumen = true;
+      try {
+        var r = await llamarApi({ accion: 'resumen', pin: pin });
+        if (r.estado === 'resumen') {
+          $('asistentes').textContent = r.asistentes;
+          $('pendientes').textContent = r.pendientes;
+          var d = new Date();
+          $('resumenEstado').textContent = 'Actualizado ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+        } else if (r.estado === 'pin') {
+          pinRechazado();
+        } else {
+          $('resumenEstado').textContent = 'No se pudo actualizar: ' + (r.mensaje || 'error en la hoja');
+        }
+      } catch (e) {
+        $('resumenEstado').textContent = 'Sin conexión: se reintentará en 30 s';
+      } finally {
+        pidiendoResumen = false;
+        if (repetirResumen) { repetirResumen = false; actualizarResumen(); }
       }
     }
 
@@ -210,7 +322,8 @@
       } catch (e) {
         scanner = null;
         var detalle = (e && e.name) ? e.name + ': ' + (e.message || '') : String(e);
-        mostrar('error', 'No se pudo abrir la cámara', '', detalle + ' — Usa "Tomar foto" o escribe el código.');
+        abrirCapa();
+        mostrarFinal('error', 'No se pudo abrir la cámara', '', detalle + ' — Usa "Tomar foto" o escribe el código.');
       }
     }
 
@@ -260,31 +373,158 @@
     async function leerFoto(input) {
       var archivo = input.files && input.files[0];
       input.value = '';
-      if (!archivo) return;
+      if (!archivo || ocupado) return;
+      abrirCapa();
       mostrar('info', 'Leyendo foto...', '', '');
       var lector = new Html5Qrcode('lectorFoto', CONFIG_LECTOR);
+      var texto = null;
       try {
         var imagen = await reducirImagen(archivo, 1600);
-        var texto = await lector.scanFile(imagen, false);
-        procesar(texto, true);
+        texto = await lector.scanFile(imagen, false);
       } catch (e) {
-        mostrar('error', 'No se pudo leer el QR', '', 'Mejor usa "Abrir cámara" (escaneo en vivo).');
+        mostrarFinal('error', 'No se pudo leer el QR', '', 'Mejor usa "Abrir cámara" (escaneo en vivo).');
       } finally {
         try { lector.clear(); } catch (e) {}
+      }
+      if (texto !== null) {
+        ocupado = false;
+        procesar(texto, true);
       }
     }
 
     // Antes de abrir la app de cámara, libera la cámara en vivo (algunos Android no la comparten).
     $('foto').addEventListener('click', function () { if (camaraActiva) detenerCamara(); });
 
-    // ---------- Manual ----------
+    // ---------- Código escrito a mano: PMB-000-X ----------
+    // Toma los 3 primeros dígitos y, después de ellos, la primera letra; pone "PMB-" y los guiones solo.
+    function formatearCodigo(texto, borrando) {
+      var s = String(texto || '').toUpperCase();
+      var digitos = '';
+      var letra = '';
+      for (var i = 0; i < s.length; i++) {
+        var c = s.charAt(i);
+        if (digitos.length < 3) {
+          if (c >= '0' && c <= '9') digitos += c;
+        } else if (c >= 'A' && c <= 'Z') {
+          letra = c;
+          break;
+        }
+      }
+      var v = PREFIJO + digitos;
+      // Al borrar no se vuelve a poner el guion si la persona lo quitó.
+      if (digitos.length === 3 && (letra || !borrando || s.slice(-1) === '-')) v += '-' + letra;
+      return v;
+    }
+
+    function aplicarFormatoManual(borrando) {
+      var el = $('manual');
+      var nuevo = formatearCodigo(el.value, borrando);
+      if (nuevo !== el.value) el.value = nuevo;
+      try { el.setSelectionRange(nuevo.length, nuevo.length); } catch (e) {}
+    }
+
+    $('manual').addEventListener('input', function (ev) {
+      if (ev.isComposing) return; // teclados Android: se formatea al terminar la composición
+      aplicarFormatoManual(!!(ev.inputType && ev.inputType.indexOf('delete') === 0));
+      $('manualError').textContent = '';
+    });
+    $('manual').addEventListener('compositionend', function () { aplicarFormatoManual(false); });
+    $('manual').addEventListener('focus', function () { aplicarFormatoManual(true); });
+    $('manual').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); registrarManual(); }
+    });
+
     function registrarManual() {
-      var v = $('manual').value;
-      $('manual').value = '';
+      var v = formatearCodigo($('manual').value, true);
+      if (!FORMATO.test(v)) {
+        $('manualError').textContent = 'Formato: PMB-000-X (3 números y 1 letra)';
+        $('manual').focus();
+        return;
+      }
+      $('manual').value = PREFIJO;
+      $('manualError').textContent = '';
+      $('manual').blur();
       procesar(v, true);
     }
 
-    // ---------- Registro ----------
+    // ---------- Panel superpuesto ----------
+    function abrirCapa() {
+      clearTimeout(temporizador);
+      ocupado = true;
+      $('formTabla').style.display = 'none';
+      $('btnEntendido').style.display = 'none';
+      $('capa').classList.add('abierta');
+    }
+
+    function cerrarCapa() {
+      clearTimeout(temporizador);
+      $('capa').classList.remove('abierta');
+      $('formTabla').style.display = 'none';
+      $('btnEntendido').style.display = 'none';
+      actual = null;
+      alEntendido = null;
+      ocupado = false;
+      ultimoT = Date.now(); // 4 s antes de aceptar otra vez el mismo QR si sigue frente a la cámara
+      reanudarCamara();
+    }
+
+    function entendido() {
+      var accion = alEntendido;
+      alEntendido = null;
+      if (accion) accion(); else cerrarCapa();
+    }
+
+    // Verde: se cierra solo a los 3 s. Amarillo/rojo: esperan "Entendido".
+    function mostrarFinal(clase, titulo, nombre, detalle, alPulsar) {
+      mostrar(clase, titulo, nombre, detalle);
+      $('formTabla').style.display = 'none';
+      if (navigator.vibrate) navigator.vibrate(clase === 'ok' ? 120 : [120, 80, 120]);
+      clearTimeout(temporizador);
+      if (clase === 'ok') {
+        $('btnEntendido').style.display = 'none';
+        temporizador = setTimeout(cerrarCapa, 3000);
+      } else {
+        alEntendido = alPulsar || null;
+        $('btnEntendido').style.display = 'block';
+        try { $('btnEntendido').focus(); } catch (e) {}
+      }
+    }
+
+    function pedirTabla(p) {
+      actual = { codigo: p.codigo, nombre: p.nombre };
+      mostrar('info', 'Asignar tabla', bonito(p.nombre), p.codigo);
+      $('btnEntendido').style.display = 'none';
+      $('formTabla').style.display = 'block';
+      $('tablaError').textContent = '';
+      $('tabla').value = '';
+      habilitarFormulario(true);
+      setTimeout(function () { try { $('tabla').focus(); } catch (e) {} }, 60);
+    }
+
+    function volverAPedirTabla() {
+      if (actual) pedirTabla(actual); else cerrarCapa();
+    }
+
+    function habilitarFormulario(si) {
+      $('tabla').disabled = !si;
+      $('btnRegistrar').disabled = !si;
+      $('btnCancelar').disabled = !si;
+    }
+
+    // Solo dígitos en "Tabla N°" (sin e, +, -, punto ni coma).
+    $('tabla').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); confirmarRegistro(); return; }
+      if (ev.key && ev.key.length === 1 && !/[0-9]/.test(ev.key) && !ev.ctrlKey && !ev.metaKey) ev.preventDefault();
+    });
+    $('tabla').addEventListener('input', function () { $('tablaError').textContent = ''; });
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape' || !$('capa').classList.contains('abierta')) return;
+      if ($('formTabla').style.display !== 'none' && !$('btnCancelar').disabled) cerrarCapa();
+      else if ($('btnEntendido').style.display !== 'none') entendido();
+    });
+
+    // ---------- Consulta y registro ----------
     async function procesar(texto, forzar) {
       var codigo = String(texto || '').trim().toUpperCase();
       if (!codigo || ocupado) return;
@@ -292,40 +532,61 @@
       if (!forzar && codigo === ultimo && ahora - ultimoT < 4000) return;
       ultimo = codigo;
       ultimoT = ahora;
-      ocupado = true;
       pausarCamara();
+      abrirCapa();
       mostrar('info', 'Consultando...', codigo, '');
       try {
-        var r = await llamarApi({ accion: 'registrar', codigo: codigo, pin: pin });
+        var r = await llamarApi({ accion: 'consultar', codigo: codigo, pin: pin });
+        if (r.estado === 'pendiente') pedirTabla(r);
+        else respuesta(r);
+      } catch (e) {
+        mostrarFinal('error', 'Error de conexión', '', textoError(e));
+      }
+    }
+
+    async function confirmarRegistro() {
+      if (!actual || $('btnRegistrar').disabled) return;
+      var v = String($('tabla').value).trim();
+      if (!/^[1-9][0-9]*$/.test(v)) {
+        $('tablaError').textContent = 'Escribe un solo número entero, mayor que 0.';
+        $('tabla').focus();
+        return;
+      }
+      $('tablaError').textContent = '';
+      habilitarFormulario(false);
+      $('btnRegistrar').textContent = 'Registrando...';
+      try {
+        var r = await llamarApi({ accion: 'registrar', codigo: actual.codigo, tabla: Number(v), pin: pin });
         respuesta(r);
       } catch (e) {
-        mostrar('error', 'Error de conexión', '', textoError(e));
+        mostrarFinal('error', 'Error de conexión', '', textoError(e) + ' Vuelve a escanear para comprobar si quedó registrado.');
       } finally {
-        ocupado = false;
-        setTimeout(reanudarCamara, 1200);
+        $('btnRegistrar').textContent = 'Registrar';
+        habilitarFormulario(true);
+        actualizarResumen();
       }
     }
 
     function respuesta(r) {
-      if (navigator.vibrate) navigator.vibrate(r.estado === 'ok' ? 120 : [120, 80, 120]);
-      if (r.estado === 'ok') {
-        contador++;
-        $('contador').textContent = 'Ingresos registrados en este celular: ' + contador;
-        mostrar('ok', '✔ Ingreso registrado', bonito(r.nombre), r.codigo + ' · ' + r.hora);
-      } else if (r.estado === 'repetido') {
-        mostrar('warn', 'Ya había ingresado', bonito(r.nombre), r.codigo + (r.hora ? ' · ' + r.hora : ''));
-      } else if (r.estado === 'no_existe') {
-        mostrar('error', 'Código no encontrado', r.codigo || '', 'Verifica en la lista impresa');
-      } else if (r.estado === 'duplicado') {
-        mostrar('error', 'Código repetido en la base', r.codigo || '', 'Revisa la hoja antes de dejarlo pasar');
-      } else if (r.estado === 'pin') {
-        detenerCamara();
-        pin = '';
-        $('app').style.display = 'none';
-        $('login').style.display = 'block';
-        $('pinError').textContent = 'PIN incorrecto';
+      var e = r.estado;
+      if (e === 'ok') {
+        mostrarFinal('ok', '✔ Ingreso registrado', bonito(r.nombre), r.codigo + ' · Tabla N° ' + r.tabla + ' · ' + r.hora);
+      } else if (e === 'repetido') {
+        mostrarFinal('warn', 'Ya había ingresado', bonito(r.nombre),
+          r.codigo + (r.tabla ? ' · Tabla N° ' + r.tabla : '') + (r.hora ? ' · ' + r.hora : ''));
+      } else if (e === 'tabla_repetida') {
+        mostrarFinal('error', 'La Tabla N° ' + r.tabla + ' ya está asignada', bonito(r.nombre),
+          'La tiene ' + r.codigo + '. No se registró: escribe otro número.', volverAPedirTabla);
+      } else if (e === 'tabla_invalida') {
+        mostrarFinal('error', 'Número de tabla no válido', '', r.mensaje || 'Escribe un solo número entero.', volverAPedirTabla);
+      } else if (e === 'no_existe') {
+        mostrarFinal('error', 'Código no encontrado', r.codigo || '', 'Verifica en la lista impresa');
+      } else if (e === 'duplicado') {
+        mostrarFinal('error', 'Código repetido en la base', r.codigo || '', 'Revisa la hoja antes de dejarlo pasar');
+      } else if (e === 'pin') {
+        pinRechazado();
       } else {
-        mostrar('error', 'Error en la hoja', '', r.mensaje || 'Intenta de nuevo');
+        mostrarFinal('error', 'Error en la hoja', '', r.mensaje || 'Intenta de nuevo');
       }
     }
 
@@ -336,7 +597,6 @@
     function mostrar(clase, titulo, nombre, detalle) {
       var el = $('resultado');
       el.className = clase;
-      el.style.display = 'block';
       el.textContent = '';
       var t = document.createElement('div');
       t.textContent = titulo;
