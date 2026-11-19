@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Pantalla · Gran Bingo Municipal</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { background: #0b1026; }
+    body {
+      margin: 0; min-height: 100vh; overflow: hidden;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #f1f5f9;
+      background-color: #0b1026;
+      background-image:
+        radial-gradient(ellipse at 50% -10%, rgba(124, 58, 237, .45), transparent 60%),
+        radial-gradient(ellipse at 100% 100%, rgba(225, 29, 72, .28), transparent 55%),
+        radial-gradient(ellipse at 0% 80%, rgba(37, 99, 235, .25), transparent 50%),
+        linear-gradient(rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(160deg, #1e1b4b 0%, #0b1026 55%, #1a0b2e 100%);
+      background-size: auto, auto, auto, 56px 56px, 56px 56px, auto;
+    }
+    header {
+      height: 11vh; display: flex; align-items: center; justify-content: space-between; padding: 0 2.5vw;
+      background: linear-gradient(90deg, rgba(37, 99, 235, .85), rgba(124, 58, 237, .85), rgba(225, 29, 72, .85));
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .45); border-bottom: .5vh solid #fbbf24;
+    }
+    header .titulo { font-size: 5.2vh; font-weight: 900; letter-spacing: .1vw; text-shadow: 0 .3vh .8vh rgba(0, 0, 0, .5); }
+    header .info { font-size: 3vh; font-weight: 800; color: #fde68a; text-align: right; }
+    header .bolitas { display: flex; gap: .8vh; }
+    header .bolitas span {
+      width: 5vh; height: 5vh; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2.6vh; font-weight: 900; color: #0f172a;
+      background: radial-gradient(circle at 50% 50%, #fff 0 45%, transparent 47%), var(--c);
+      box-shadow: inset -.4vh -.4vh .6vh rgba(0, 0, 0, .3), 0 .3vh .5vh rgba(0, 0, 0, .4);
+    }
+    #juego { height: 89vh; display: grid; grid-template-columns: 34vw 1fr; gap: 2vw; padding: 2.2vh 2vw; }
+    .panel {
+      background: rgba(15, 23, 42, .86); border: .25vh solid rgba(251, 191, 36, .45); border-radius: 2vh;
+      box-shadow: 0 1vh 3vh rgba(0, 0, 0, .5);
+    }
+    #izquierda { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 1.8vh; min-height: 0; }
+    #izquierda .panel, #tableroPanel { overflow: hidden; }
+    #actualPanel { padding: 1.6vh 2vh; text-align: center; }
+    #actualPanel .rotulo { font-size: 3vh; font-weight: 800; color: #fde68a; }
+    .bolaGrande {
+      width: 31vh; height: 31vh; margin: 1vh auto 0; border-radius: 50%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 50%, #fff 0 54%, transparent 55.5%), var(--c, #475569);
+      box-shadow: inset -2vh -2vh 3vh rgba(0, 0, 0, .35), inset 1.5vh 1.5vh 3vh rgba(255, 255, 255, .25), 0 1.5vh 4vh rgba(0, 0, 0, .6);
+      color: #0f172a; font-weight: 900;
+    }
+    .bolaGrande .l { font-size: 5.5vh; line-height: 1; color: var(--c, #475569); }
+    .bolaGrande .n { font-size: 12.5vh; line-height: 1; letter-spacing: -.3vh; }
+    .bolaGrande.nueva { animation: entra .9s cubic-bezier(.2, 1.4, .4, 1); }
+    @keyframes entra { 0% { transform: scale(.3) rotate(-200deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+    #ultimas { display: flex; justify-content: center; gap: 1.2vh; margin-top: 1.4vh; min-height: 6.5vh; }
+    .bolaChica {
+      width: 6.5vh; height: 6.5vh; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 50%, #fff 0 50%, transparent 52%), var(--c);
+      color: #0f172a; font-weight: 900; font-size: 3vh; box-shadow: inset -.5vh -.5vh .8vh rgba(0, 0, 0, .3);
+    }
+    #premioPanel { padding: 1.6vh 2vh; text-align: center; }
+    #premioPanel .rotulo, #figuraPanel .rotulo { font-size: 2.6vh; font-weight: 800; color: #fde68a; }
+    #premio { font-size: 6.5vh; font-weight: 900; color: #86efac; text-shadow: 0 .4vh 1vh rgba(0, 0, 0, .5); line-height: 1.1; }
+    #figuraPanel { padding: 1.6vh 2vh; display: flex; align-items: center; gap: 2.4vh; min-height: 0; }
+    #figuraNombre { font-size: 3.2vh; font-weight: 900; line-height: 1.1; }
+    #figuraVariantes { font-size: 2.2vh; opacity: .8; margin-top: .6vh; }
+    .mini { display: grid; grid-template-columns: repeat(5, 2.9vh); gap: .45vh; flex: 0 0 auto; }
+    .mini div { height: 2.9vh; border-radius: .6vh; background: #1e293b; border: .15vh solid #475569; }
+    .mini div.on { background: #fbbf24; border-color: #fde68a; }
+    .mini div.centro { background: #7c3aed; }
+
+    #tableroPanel { padding: 2vh 1.4vw; min-width: 0; display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+    #tableroPanel .cabecera { display: flex; justify-content: space-between; align-items: baseline; font-size: 3vh; font-weight: 800; color: #fde68a; margin-bottom: 1.4vh; }
+    #tablero { display: grid; grid-template-columns: 6.5vh repeat(15, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); gap: .8vh; min-height: 0; }
+    #tablero .letra {
+      display: flex; align-items: center; justify-content: center; border-radius: 1.2vh;
+      font-size: 6vh; font-weight: 900; color: #fff; background: var(--c); text-shadow: 0 .3vh .6vh rgba(0, 0, 0, .4);
+    }
+    #tablero .num {
+      display: flex; align-items: center; justify-content: center; border-radius: 1.2vh;
+      font-size: min(4.2vh, 2.3vw); font-weight: 900; color: rgba(203, 213, 225, .35); min-width: 0;
+      background: rgba(30, 41, 59, .8); border: .2vh solid rgba(71, 85, 105, .7);
+      transition: background .4s, color .4s, transform .4s;
+    }
+    #tablero .num.salio { background: var(--c); color: #fff; border-color: #fde68a; text-shadow: 0 .3vh .6vh rgba(0, 0, 0, .5); }
+    #tablero .num.ultima { animation: late 1.2s ease-in-out infinite; box-shadow: 0 0 0 .5vh #fde68a; }
+    @keyframes late { 50% { transform: scale(1.12); } }
+
+    #anuncio {
+      position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+      background: rgba(2, 6, 23, .78);
+    }
+    #anuncio.visible { display: flex; }
+    #anuncio .caja {
+      text-align: center; padding: 5vh 6vw; border-radius: 3vh; border: .6vh solid #fbbf24;
+      background: linear-gradient(160deg, #16a34a, #15803d); box-shadow: 0 2vh 6vh rgba(0, 0, 0, .7);
+      animation: entra .9s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    #anuncio .bingo { font-size: 16vh; font-weight: 900; letter-spacing: 1vh; color: #fde68a; text-shadow: 0 .8vh 2vh rgba(0, 0, 0, .5); line-height: 1; }
+    #anuncio .tabla { font-size: 8vh; font-weight: 900; margin-top: 2vh; }
+    #anuncio .nombre { font-size: 6vh; font-weight: 800; margin-top: 1vh; }
+    #anuncio .detalle { font-size: 4vh; margin-top: 2vh; color: #fef9c3; }
+
+    #conexion { position: fixed; right: 1vw; bottom: .6vh; font-size: 1.6vh; opacity: .5; z-index: 5; }
+    #conexion.mal { opacity: 1; color: #fca5a5; font-weight: 800; font-size: 2.2vh; }
+    #btnPantalla { position: fixed; left: 1vw; bottom: .8vh; z-index: 5; padding: .6vh 1vw; font-size: 1.6vh; border: 0; border-radius: .8vh; background: rgba(51, 65, 85, .7); color: #fff; opacity: .5; cursor: pointer; }
+
+    /* Entrada */
+    #login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 30; }
+    #login .caja { width: min(92vw, 440px); padding: 22px; background: rgba(15, 23, 42, .95); border: 2px solid #fbbf24; border-radius: 16px; }
+    #login h2 { margin: 0 0 12px; color: #fde68a; }
+    #login input { width: 100%; padding: 14px; font-size: 18px; border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff; }
+    #login button { width: 100%; margin-top: 12px; padding: 14px; font-size: 17px; font-weight: 700; border: 0; border-radius: 10px; background: #2563eb; color: #fff; cursor: pointer; }
+    #login label { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 15px; }
+    #loginError { color: #fca5a5; min-height: 1.2em; margin: 10px 0 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bolitas" aria-hidden="true"><span style="--c:#2563eb">B</span><span style="--c:#dc2626">I</span><span style="--c:#7c3aed">N</span><span style="--c:#16a34a">G</span><span style="--c:#f59e0b">O</span></div>
+    <div class="titulo">Gran Bingo Municipal</div>
+    <div class="info"><div id="ronda">Ronda –</div><div id="conteo">0 balotas</div></div>
+  </header>
+
+  <div id="juego">
+    <div id="izquierda">
+      <div id="actualPanel" class="panel">
+        <div class="rotulo">Balota actual</div>
+        <div class="bolaGrande" id="bolaActual"><span class="l">–</span><span class="n">–</span></div>
+        <div id="ultimas"></div>
+      </div>
+      <div id="premioPanel" class="panel">
+        <div class="rotulo">Premio</div>
+        <div id="premio">–</div>
+      </div>
+      <div id="figuraPanel" class="panel">
+        <div class="mini" id="figuraMini"></div>
+        <div>
+          <div class="rotulo">Figura</div>
+          <div id="figuraNombre">–</div>
+          <div id="figuraVariantes"></div>
+        </div>
+      </div>
+    </div>
+    <div id="tableroPanel" class="panel">
+      <div class="cabecera"><span>Balotas que han salido</span><span id="faltan"></span></div>
+      <div id="tablero"></div>
+    </div>
+  </div>
+
+  <div id="anuncio">
+    <div class="caja">
+      <div class="bingo">¡BINGO!</div>
+      <div class="tabla" id="anTabla"></div>
+      <div class="nombre" id="anNombre"></div>
+      <div class="detalle" id="anDetalle"></div>
+    </div>
+  </div>
+
+  <div id="conexion"></div>
+  <button id="btnPantalla" onclick="pantallaCompleta()">Pantalla completa</button>
+
+  <div id="login">
+    <div class="caja">
+      <h2>Clave de la pantalla</h2>
+      <input type="password" id="clave" autocomplete="off">
+      <label><input type="checkbox" id="recordar" style="width:auto"> Recordar en este equipo</label>
+      <button id="btnEntrar" onclick="entrar()">Entrar</button>
+      <p id="loginError"></p>
+    </div>
+  </div>
+
+  <script>
+    // URL del despliegue de Apps Script (termina en /exec)
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzcTqnNERnPIBRAhMR-EiVYOlCC26XBM8rbkWK1nVx3XOcs_ETcaOi1EVIS2GtLcl1m/exec';
+    var INTERVALO_MS = 2000;
+    var LETRAS = ['B', 'I', 'N', 'G', 'O'];
+    var COLORES = { B: '#2563eb', I: '#dc2626', N: '#7c3aed', G: '#16a34a', O: '#f59e0b' };
+    var COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0, minimumFractionDigits: 0 });
+
+    var clave = '';
+    var ultimaV = null;
+    var ultimaActual = null;
+    var temporizador = null;
+    var fallos = 0;
+
+    function $(id) { return document.getElementById(id); }
+    function letraDe(n) { return LETRAS[Math.floor((n - 1) / 15)]; }
+    function bonito(n) { return String(n || '').toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); }); }
+
+    function llamarApi(datos) {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 15000);
+      datos.clave = clave;
+      return fetch(API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(datos), signal: ctrl.signal, cache: 'no-store'
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).finally(function () { clearTimeout(t); });
+    }
+
+    // ---------- Entrada ----------
+    async function entrar() {
+      var v = $('clave').value.trim();
+      if (!v) return;
+      $('btnEntrar').disabled = true;
+      $('loginError').textContent = 'Verificando...';
+      clave = v;
+      try {
+        var r = await llamarApi({ accion: 'validarClave' });
+        if (r.estado !== 'clave_ok') { clave = ''; $('loginError').textContent = 'Clave incorrecta'; borrarGuardada(); return; }
+        try {
+          if ($('recordar').checked) localStorage.setItem('claveTv', v);
+          sessionStorage.setItem('claveTv', v);
+        } catch (e) {}
+        $('loginError').textContent = '';
+        $('login').style.display = 'none';
+        construirTablero();
+        sondear();
+      } catch (e) {
+        clave = '';
+        $('loginError').textContent = 'Sin conexión. Reintentando...';
+        setTimeout(entrar, 5000);
+      } finally {
+        $('btnEntrar').disabled = false;
+      }
+    }
+    $('clave').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') entrar(); });
+
+    function borrarGuardada() {
+      try { localStorage.removeItem('claveTv'); sessionStorage.removeItem('claveTv'); } catch (e) {}
+    }
+
+    // ---------- Polling cada 2 s (la siguiente consulta sale cuando termina la anterior) ----------
+    async function sondear() {
+      clearTimeout(temporizador);
+      try {
+        var r = await llamarApi({ accion: 'estado' });
+        if (r.estado === 'clave') {
+          borrarGuardada();
+          clave = '';
+          $('login').style.display = 'flex';
+          $('loginError').textContent = 'La clave cambió. Escríbela de nuevo.';
+          return;
+        }
+        if (r.estado === 'juego') {
+          fallos = 0;
+          if (r.v !== ultimaV) { ultimaV = r.v; pintar(r); }
+          conexion(true);
+        } else {
+          conexion(false, r.mensaje || 'Respuesta inesperada');
+        }
+      } catch (e) {
+        fallos++;
+        conexion(false, 'Sin conexión (reintentando)');
+      }
+      temporizador = setTimeout(sondear, fallos > 3 ? 5000 : INTERVALO_MS);
+    }
+
+    function conexion(bien, texto) {
+      var c = $('conexion');
+      c.className = bien ? '' : 'mal';
+      var d = new Date();
+      c.textContent = bien ? 'En línea · ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2) : texto;
+    }
+
+    // ---------- Pintar ----------
+    function construirTablero() {
+      var t = $('tablero');
+      if (t.childNodes.length) return;
+      LETRAS.forEach(function (L, f) {
+        var l = document.createElement('div');
+        l.className = 'letra';
+        l.textContent = L;
+        l.style.setProperty('--c', COLORES[L]);
+        t.appendChild(l);
+        for (var i = 1; i <= 15; i++) {
+          var n = f * 15 + i;
+          var d = document.createElement('div');
+          d.className = 'num';
+          d.id = 'n' + n;
+          d.textContent = n;
+          d.style.setProperty('--c', COLORES[L]);
+          t.appendChild(d);
+        }
+      });
+    }
+
+    function pintar(r) {
+      $('ronda').textContent = 'Ronda ' + r.ronda;
+      $('conteo').textContent = r.balotas.length + (r.balotas.length === 1 ? ' balota' : ' balotas');
+      $('faltan').textContent = (75 - r.balotas.length) + ' por salir';
+
+      var a = r.actual;
+      var bola = $('bolaActual');
+      bola.style.setProperty('--c', a ? COLORES[letraDe(a)] : '#475569');
+      bola.querySelector('.l').textContent = a ? letraDe(a) : '–';
+      bola.querySelector('.n').textContent = a || '–';
+      if (a && a !== ultimaActual) {
+        bola.classList.remove('nueva');
+        void bola.offsetWidth;
+        bola.classList.add('nueva');
+      }
+      ultimaActual = a;
+
+      var u = $('ultimas');
+      u.textContent = '';
+      r.balotas.slice(-6, -1).reverse().forEach(function (n) {
+        var b = document.createElement('div');
+        b.className = 'bolaChica';
+        b.textContent = n;
+        b.style.setProperty('--c', COLORES[letraDe(n)]);
+        u.appendChild(b);
+      });
+
+      var salieron = {};
+      r.balotas.forEach(function (n) { salieron[n] = true; });
+      for (var n = 1; n <= 75; n++) {
+        var c = $('n' + n);
+        c.classList.toggle('salio', !!salieron[n]);
+        c.classList.toggle('ultima', n === a);
+      }
+
+      $('premio').textContent = r.premio ? COP.format(r.premio) : 'Por anunciar';
+      var f = r.figura;
+      $('figuraNombre').textContent = f ? f.nombre : '–';
+      $('figuraVariantes').textContent = f && f.mascaras.length > 1 ? 'Vale cualquiera de las ' + f.mascaras.length + ' formas' : '';
+      var mini = $('figuraMini');
+      mini.textContent = '';
+      if (f) {
+        for (var p = 0; p < 25; p++) {
+          var d = document.createElement('div');
+          d.className = p === 12 ? 'centro' : (f.mascaras[0].charAt(p) === '1' ? 'on' : '');
+          mini.appendChild(d);
+        }
+      }
+
+      var an = r.anuncio;
+      $('anuncio').classList.toggle('visible', !!an);
+      if (an) {
+        $('anTabla').textContent = 'Tabla N° ' + String(an.tabla).padStart(4, '0');
+        $('anNombre').textContent = bonito(an.nombre);
+        $('anDetalle').textContent = an.figura + (an.premio ? ' · ' + COP.format(an.premio) : '');
+      }
+    }
+
+    function pantallaCompleta() {
+      var d = document.documentElement;
+      if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(function () {});
+      else if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+    }
+
+    // Entrada automática si la clave está guardada en este equipo.
+    (function () {
+      var g = null;
+      try { g = localStorage.getItem('claveTv') || sessionStorage.getItem('claveTv'); if (localStorage.getItem('claveTv')) $('recordar').checked = true; } catch (e) {}
+      if (g) { $('clave').value = g; entrar(); }
+    })();
+  </script>
+</body>
+</html>

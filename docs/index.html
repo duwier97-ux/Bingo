@@ -547,7 +547,8 @@
     async function confirmarRegistro() {
       if (!actual || $('btnRegistrar').disabled) return;
       var v = String($('tabla').value).trim();
-      if (!/^[1-9][0-9]*$/.test(v)) {
+      // Acepta ceros a la izquierda (0764 se guarda como 764).
+      if (!/^0*[1-9][0-9]*$/.test(v) || v.length > 12) {
         $('tablaError').textContent = 'Escribe un solo número entero, mayor que 0.';
         $('tabla').focus();
         return;
@@ -556,7 +557,7 @@
       habilitarFormulario(false);
       $('btnRegistrar').textContent = 'Registrando...';
       try {
-        var r = await llamarApi({ accion: 'registrar', codigo: actual.codigo, tabla: Number(v), pin: pin });
+        var r = await llamarApi({ accion: 'registrar', codigo: actual.codigo, tabla: parseInt(v, 10), pin: pin });
         respuesta(r);
       } catch (e) {
         mostrarFinal('error', 'Error de conexión', '', textoError(e) + ' Vuelve a escanear para comprobar si quedó registrado.');

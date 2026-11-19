@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Control del juego · Gran Bingo Municipal</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { background: #0b1026; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #f1f5f9;
+      background-color: #0b1026;
+      background-image:
+        radial-gradient(ellipse at 50% -10%, rgba(124, 58, 237, .45), transparent 60%),
+        radial-gradient(ellipse at 100% 100%, rgba(225, 29, 72, .28), transparent 55%),
+        radial-gradient(ellipse at 0% 80%, rgba(37, 99, 235, .25), transparent 50%),
+        linear-gradient(rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(160deg, #1e1b4b 0%, #0b1026 55%, #1a0b2e 100%);
+      background-size: auto, auto, auto, 56px 56px, 56px 56px, auto;
+      background-attachment: fixed;
+    }
+    header {
+      padding: 12px 16px; text-align: center;
+      background: linear-gradient(90deg, rgba(37, 99, 235, .85), rgba(124, 58, 237, .85), rgba(225, 29, 72, .85));
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .45); border-bottom: 3px solid #fbbf24;
+    }
+    header .titulo { font-size: 22px; font-weight: 800; text-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+    header .subtitulo { margin-top: 2px; font-size: 14px; font-weight: 600; color: #fde68a; }
+    main { max-width: 1180px; margin: 0 auto; padding: 12px 10px 40px; }
+    .panel {
+      background: rgba(15, 23, 42, .88); border: 1px solid rgba(251, 191, 36, .35); border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .5); padding: 14px; margin-bottom: 12px;
+    }
+    .panel h2 { margin: 0 0 10px; font-size: 17px; color: #fde68a; }
+    button {
+      padding: 12px 14px; font-size: 16px; font-weight: 700; border: 0; border-radius: 10px; cursor: pointer;
+      background: #2563eb; color: #fff; box-shadow: 0 3px 0 #1e40af, 0 4px 10px rgba(0, 0, 0, .35);
+    }
+    button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1e40af; }
+    button:disabled { opacity: .55; cursor: default; }
+    button.sec { background: #334155; box-shadow: 0 3px 0 #1e293b, 0 4px 10px rgba(0, 0, 0, .35); }
+    button.peligro { background: #b91c1c; box-shadow: 0 3px 0 #7f1d1d, 0 4px 10px rgba(0, 0, 0, .35); }
+    button.exito { background: #16a34a; box-shadow: 0 3px 0 #166534, 0 4px 10px rgba(0, 0, 0, .35); }
+    button.ancho { width: 100%; }
+    input, select {
+      width: 100%; padding: 12px; font-size: 17px; border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff;
+    }
+    input:focus, select:focus { outline: 2px solid #fbbf24; outline-offset: 1px; }
+    label { display: block; margin: 8px 0 4px; font-size: 14px; font-weight: 700; color: #fde68a; }
+    .fila { display: flex; gap: 8px; align-items: stretch; }
+    .fila > * { flex: 1; }
+    .error { color: #fca5a5; min-height: 1.2em; margin: 6px 0 0; font-size: 14px; }
+    .tenue { opacity: .75; font-size: 13px; }
+
+    #login { max-width: 420px; margin: 30px auto; }
+
+    /* Barra de estado */
+    #barra { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+    .bola {
+      width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 50%, #fff 0 52%, transparent 54%), var(--c, #475569);
+      box-shadow: inset -6px -6px 10px rgba(0, 0, 0, .3), 0 4px 10px rgba(0, 0, 0, .5); color: #0f172a; font-weight: 900;
+    }
+    .bola .l { font-size: 15px; line-height: 1; color: var(--c, #475569); }
+    .bola .n { font-size: 34px; line-height: 1; }
+    #datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    @media (max-width: 560px) {
+      #barra { grid-template-columns: minmax(0, 1fr); justify-items: stretch; }
+      #barra .bola { margin: 0 auto; }
+      #datos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dato strong { font-size: 17px; }
+      main { padding-left: 8px; padding-right: 8px; }
+      .panel { padding: 12px 10px; }
+    }
+    .dato { background: rgba(30, 41, 59, .9); border: 1px solid rgba(251, 191, 36, .35); border-radius: 12px; padding: 8px 10px; }
+    .dato span { display: block; font-size: 12px; color: #fde68a; font-weight: 700; }
+    .dato strong { display: block; font-size: 20px; margin-top: 2px; overflow-wrap: anywhere; }
+    #conexion { margin: 8px 0 0; font-size: 13px; }
+    #conexion.mal { color: #fca5a5; }
+    #ultimas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    #ultimas span { padding: 3px 8px; border-radius: 999px; background: #1e293b; border: 1px solid #475569; font-weight: 700; font-size: 14px; }
+
+    #anuncio { display: none; background: #16a34a; border: 2px solid #fde68a; }
+    #anuncio.visible { display: block; }
+    #anuncio .grande { font-size: 22px; font-weight: 900; overflow-wrap: anywhere; }
+
+    /* Tablero 1-75: 5 columnas B I N G O */
+    .columnas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 12px; }
+    @media (max-width: 860px) { .columnas { grid-template-columns: minmax(0, 1fr); } }
+    #tablero { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+    #tablero .cab { text-align: center; font-weight: 900; font-size: 20px; padding: 6px 0; border-radius: 10px; color: #fff; }
+    #tablero button.num {
+      padding: 0; height: 40px; font-size: 18px; font-weight: 800; border-radius: 9px; width: 100%;
+      background: #1e293b; color: #cbd5e1; border: 1px solid #475569; box-shadow: none;
+    }
+    #tablero button.num.salio { background: var(--c); color: #fff; border-color: #fde68a; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+    #tablero button.num.ultima { outline: 3px solid #fde68a; outline-offset: 1px; }
+    #tablero button.num.pendiente { opacity: .6; }
+    .acciones { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+    .acciones button { padding-left: 6px; padding-right: 6px; }
+
+    /* Mini cartón */
+    .mini { display: inline-grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+    .mini div { width: 26px; height: 26px; border-radius: 5px; background: #1e293b; border: 1px solid #475569; }
+    .mini div.on { background: #fbbf24; border-color: #fde68a; }
+    .mini div.centro { background: #7c3aed; }
+    .mini.editable div { width: 40px; height: 40px; cursor: pointer; }
+    #figuraVista { display: flex; gap: 14px; align-items: center; margin-top: 10px; }
+    #editor { display: none; margin-top: 10px; }
+
+    /* Ganadores */
+    #resumenGan { margin: 0 0 8px; font-size: 14px; }
+    .ganador { border: 2px solid #fbbf24; border-radius: 12px; padding: 10px; margin-top: 10px; background: rgba(22, 163, 74, .15); }
+    .ganador.confirmado { background: rgba(22, 163, 74, .35); border-color: #86efac; }
+    .ganador .cab { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+    .ganador .tabla { font-size: 22px; font-weight: 900; }
+    .ganador .nombre { font-size: 18px; font-weight: 700; }
+    .carton { display: inline-grid; grid-template-columns: repeat(5, minmax(0, 38px)); max-width: 100%; gap: 3px; margin: 8px 0; }
+    .carton div { height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-weight: 800; background: #f1f5f9; color: #0f172a; font-size: 15px; }
+    .carton div.l { background: transparent; color: #fde68a; }
+    .carton div.marcada { background: #fca5a5; }
+    .carton div.figura { outline: 3px solid #16a34a; outline-offset: -3px; }
+    .carton div.figura.marcada { background: #4ade80; }
+    .carton div.centro { background: #7c3aed; color: #fff; font-size: 10px; }
+    .leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 4px; font-size: 13px; }
+    .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+    .leyenda i { display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #f1f5f9; }
+    .leyenda i.fig { background: #4ade80; outline: 2px solid #16a34a; outline-offset: -2px; }
+    .leyenda i.mar { background: #fca5a5; }
+    .leyenda i.cen { background: #7c3aed; }
+    .aviso { background: rgba(217, 119, 6, .25); border: 1px solid #d97706; border-radius: 10px; padding: 8px 10px; margin-top: 8px; font-size: 14px; }
+    #historial li { margin: 4px 0; }
+    .tablaRevisar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #334155; }
+    .tablaRevisar:first-child { border-top: 0; }
+    .estadoTabla { font-weight: 800; }
+    .estadoTabla.si { color: #86efac; }
+    .estadoTabla.no { color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="titulo">Gran Bingo Municipal</div>
+    <div class="subtitulo">Control del juego</div>
+  </header>
+  <main>
+    <section id="login" class="panel">
+      <h2>Clave del juego</h2>
+      <input type="password" id="clave" autocomplete="off">
+      <button id="btnEntrar" class="ancho" style="margin-top:10px" onclick="entrar()">Entrar</button>
+      <p class="error" id="loginError"></p>
+    </section>
+
+    <section id="app" style="display:none">
+      <div class="panel">
+        <div id="barra">
+          <div class="bola" id="bolaActual"><span class="l">–</span><span class="n">–</span></div>
+          <div>
+            <div id="datos">
+              <div class="dato"><span>Ronda</span><strong id="ronda">–</strong></div>
+              <div class="dato"><span>Balotas cantadas</span><strong id="conteo">0 / 75</strong></div>
+              <div class="dato"><span>Figura</span><strong id="figuraActual">–</strong></div>
+              <div class="dato"><span>Premio</span><strong id="premioActual">–</strong></div>
+            </div>
+            <div id="ultimas"></div>
+          </div>
+        </div>
+        <p id="conexion" class="tenue"></p>
+      </div>
+
+      <div id="anuncio" class="panel">
+        <div class="grande" id="anuncioTexto"></div>
+        <div id="anuncioDetalle"></div>
+        <button class="sec" style="margin-top:10px" onclick="ocultarAnuncio()">Quitar de la pantalla</button>
+      </div>
+
+      <div class="columnas">
+        <div class="panel">
+          <h2>Tablero 1–75</h2>
+          <p class="tenue" style="margin-top:0">Toca un número para cantarlo. Si tocas uno ya cantado, se pregunta si quitarlo.</p>
+          <div id="tablero"></div>
+          <div class="acciones">
+            <button class="sec" id="btnDeshacer" onclick="deshacer()">Deshacer última</button>
+            <button class="peligro" onclick="nuevaRonda()">Nueva ronda</button>
+          </div>
+          <p class="error" id="tableroError"></p>
+        </div>
+
+        <div>
+          <div class="panel">
+            <h2>Ganadores</h2>
+            <p id="resumenGan" class="tenue">Solo cuentan las tablas con ingreso registrado.</p>
+            <div class="leyenda" aria-label="Colores del cartón"><span><i class="fig"></i>Figura completa</span><span><i class="mar"></i>Otra balota cantada</span><span><i></i>No ha salido</span><span><i class="cen"></i>N° de tabla (cuenta siempre)</span></div>
+            <button class="sec ancho" id="btnGanadores" onclick="calcularGanadores(true)">Calcular ganadores</button>
+            <div id="ganadores"></div>
+            <div id="avisosGan"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Figura</h2>
+            <select id="figura" onchange="cambioFigura()">
+              <option value="lleno">Cartón lleno</option>
+              <option value="linea">Línea (horizontal, vertical o diagonal)</option>
+              <option value="horizontal">Línea horizontal</option>
+              <option value="vertical">Línea vertical</option>
+              <option value="diagonal">Diagonal</option>
+              <option value="esquinas">Cuatro esquinas</option>
+              <option value="x">Letra X</option>
+              <option value="marco">Marco</option>
+              <option value="l">Letra L</option>
+              <option value="t">Letra T</option>
+              <option value="u">Letra U</option>
+              <option value="cruz">Cruz</option>
+              <option value="personalizada">Personalizada…</option>
+            </select>
+            <div id="editor">
+              <label for="nombreFigura">Nombre de la figura</label>
+              <input type="text" id="nombreFigura" maxlength="40" placeholder="Figura personalizada">
+              <label>Toca las casillas (el centro es el número de tabla y siempre cuenta)</label>
+              <div class="mini editable" id="editorGrilla"></div>
+            </div>
+            <div id="figuraVista"><div class="mini" id="figuraMini"></div><div class="tenue" id="figuraNota"></div></div>
+            <button class="ancho" style="margin-top:10px" id="btnFigura" onclick="aplicarFigura()">Aplicar figura</button>
+            <p class="error" id="figuraError"></p>
+          </div>
+
+          <div class="panel">
+            <h2>Premio (COP)</h2>
+            <div class="fila">
+              <input type="text" id="premio" inputmode="numeric" autocomplete="off" placeholder="$ 0">
+              <button id="btnPremio" style="flex:0 0 auto" onclick="fijarPremio()">Fijar</button>
+            </div>
+            <p class="error" id="premioError"></p>
+          </div>
+
+          <div class="panel">
+            <h2>Tablas por confirmar</h2>
+            <div id="revisar" class="tenue">Cargando…</div>
+            <p class="error" id="revisarError"></p>
+          </div>
+
+          <div class="panel">
+            <h2>Ganadores confirmados</h2>
+            <ul id="historial" class="tenue"><li>Ninguno todavía.</li></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // URL del despliegue de Apps Script (termina en /exec)
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzcTqnNERnPIBRAhMR-EiVYOlCC26XBM8rbkWK1nVx3XOcs_ETcaOi1EVIS2GtLcl1m/exec';
+    var LETRAS = ['B', 'I', 'N', 'G', 'O'];
+    var COLORES = { B: '#2563eb', I: '#dc2626', N: '#7c3aed', G: '#16a34a', O: '#f59e0b' };
+    var CELDAS = ['B1','I1','N1','G1','O1','B2','I2','N2','G2','O2','B3','I3','N3','G3','O3','B4','I4','N4','G4','O4','B5','I5','N5','G5','O5'];
+    var FIGURAS = {
+      lleno: 'Cartón lleno', linea: 'Línea (horizontal, vertical o diagonal)', horizontal: 'Línea horizontal',
+      vertical: 'Línea vertical', diagonal: 'Diagonal', esquinas: 'Cuatro esquinas', x: 'Letra X', marco: 'Marco',
+      l: 'Letra L', t: 'Letra T', u: 'Letra U', cruz: 'Cruz'
+    };
+    var COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0, minimumFractionDigits: 0 });
+
+    var clave = '';
+    var estado = null;          // último estado recibido del servidor
+    var pendientes = {};        // balotas enviadas y aún sin respuesta
+    var cola = Promise.resolve();
+    var intervalo = null;
+    var mascaraEditor = '0000000000001000000000000';
+    var ganTimer = null, calculando = false, recalcular = false;
+
+    function $(id) { return document.getElementById(id); }
+    function tabla4(n) { return String(n).padStart(4, "0"); }
+    function letraDe(n) { return LETRAS[Math.floor((n - 1) / 15)]; }
+    function pesos(n) { return COP.format(Number(n) || 0); }
+    function hora() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
+    function bonito(n) { return String(n || '').toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); }); }
+    function el(tag, clase, texto) { var e = document.createElement(tag); if (clase) e.className = clase; if (texto !== undefined) e.textContent = texto; return e; }
+
+    // ---------- API ----------
+    function llamarApi(datos) {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 25000);
+      datos.clave = clave;
+      return fetch(API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(datos), signal: ctrl.signal
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (r) {
+        if (r && r.estado === 'clave') { salir('La clave ya no es válida. Vuelve a entrar.'); throw new Error('clave'); }
+        return r;
+      }).finally(function () { clearTimeout(t); });
+    }
+    function textoError(e) {
+      if (e && e.name === 'AbortError') return 'La hoja tardó demasiado. Intenta de nuevo.';
+      return String((e && e.message) || e || 'Error');
+    }
+    // Las acciones que cambian el juego van en fila, una tras otra, para respetar el orden de las balotas.
+    function enCola(fn) {
+      var p = cola.then(fn, fn);
+      cola = p.catch(function () {});
+      return p;
+    }
+
+    // ---------- Entrada ----------
+    async function entrar() {
+      var v = $('clave').value.trim();
+      if (!v) return;
+      $('btnEntrar').disabled = true;
+      $('loginError').textContent = 'Verificando...';
+      clave = v;
+      try {
+        var r = await llamarApi({ accion: 'validarClave' });
+        if (r.estado !== 'clave_ok' || r.rol !== 'juego') { clave = ''; $('loginError').textContent = 'Esa no es la clave del juego.'; return; }
+        try { sessionStorage.setItem('claveJuego', v); } catch (e) {}
+        $('loginError').textContent = '';
+        $('login').style.display = 'none';
+        $('app').style.display = 'block';
+        iniciar();
+      } catch (e) {
+        if (textoError(e) !== 'clave') $('loginError').textContent = 'Sin conexión: ' + textoError(e);
+        else $('loginError').textContent = 'Clave incorrecta';
+        clave = '';
+      } finally {
+        $('btnEntrar').disabled = false;
+      }
+    }
+    $('clave').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') entrar(); });
+
+    function salir(mensaje) {
+      if (intervalo) clearInterval(intervalo);
+      intervalo = null;
+      clave = '';
+      try { sessionStorage.removeItem('claveJuego'); } catch (e) {}
+      $('app').style.display = 'none';
+      $('login').style.display = 'block';
+      $('loginError').textContent = mensaje || '';
+    }
+
+    function iniciar() {
+      construirTablero();
+      construirEditor();
+      refrescar();
+      cargarRevisar();
+      if (!intervalo) intervalo = setInterval(refrescar, 5000);
+    }
+
+    async function refrescar() {
+      try {
+        var r = await llamarApi({ accion: 'estado' });
+        if (r.estado === 'juego') aplicar(r);
+      } catch (e) {
+        if (textoError(e) !== 'clave') marcarConexion(false, 'Sin conexión: ' + textoError(e));
+      }
+    }
+
+    function marcarConexion(bien, texto) {
+      $('conexion').className = bien ? 'tenue' : 'mal';
+      $('conexion').textContent = texto;
+    }
+
+    // ---------- Pintar el estado ----------
+    function aplicar(r) {
+      if (!r || !Array.isArray(r.balotas)) return;
+      var cambioBalotas = !estado || estado.ronda !== r.ronda || estado.balotas.join(',') !== r.balotas.join(',');
+      var cambioFigura = !estado || JSON.stringify(estado.figura) !== JSON.stringify(r.figura);
+      estado = r;
+      marcarConexion(true, 'Actualizado ' + hora() + (r.actualizado ? ' · último cambio ' + r.actualizado : ''));
+      pintarBarra();
+      pintarTablero();
+      pintarAnuncio();
+      pintarHistorial();
+      if (cambioFigura) pintarFigura();
+      if (cambioBalotas || cambioFigura) programarGanadores();
+    }
+
+    function pintarBarra() {
+      var a = estado.actual;
+      var b = $('bolaActual');
+      b.style.setProperty('--c', a ? COLORES[letraDe(a)] : '#475569');
+      b.querySelector('.l').textContent = a ? letraDe(a) : '–';
+      b.querySelector('.n').textContent = a || '–';
+      $('ronda').textContent = estado.ronda;
+      $('conteo').textContent = estado.balotas.length + ' / 75';
+      $('figuraActual').textContent = estado.figura ? estado.figura.nombre : '–';
+      $('premioActual').textContent = pesos(estado.premio);
+      $('btnDeshacer').textContent = a ? 'Deshacer última (' + letraDe(a) + ' ' + a + ')' : 'Deshacer última';
+      $('btnDeshacer').disabled = !a;
+      var u = $('ultimas');
+      u.textContent = '';
+      estado.balotas.slice(-10).reverse().forEach(function (n, i) {
+        if (i === 0) return;
+        u.appendChild(el('span', '', letraDe(n) + ' ' + n));
+      });
+      if (document.activeElement !== $('premio')) $('premio').value = estado.premio ? pesos(estado.premio) : '';
+    }
+
+    function construirTablero() {
+      var t = $('tablero');
+      if (t.childNodes.length) return;
+      LETRAS.forEach(function (L) {
+        var c = el('div', 'cab', L);
+        c.style.background = COLORES[L];
+        t.appendChild(c);
+      });
+      for (var fila = 0; fila < 15; fila++) {
+        for (var col = 0; col < 5; col++) {
+          var n = col * 15 + fila + 1;
+          var b = el('button', 'num', String(n));
+          b.id = 'n' + n;
+          b.style.setProperty('--c', COLORES[LETRAS[col]]);
+          b.onclick = (function (num) { return function () { tocarNumero(num); }; })(n);
+          t.appendChild(b);
+        }
+      }
+    }
+
+    function pintarTablero() {
+      for (var n = 1; n <= 75; n++) {
+        var b = $('n' + n);
+        var salio = estado.balotas.indexOf(n) >= 0;
+        b.classList.toggle('salio', salio || !!pendientes[n]);
+        b.classList.toggle('pendiente', !!pendientes[n]);
+        b.classList.toggle('ultima', n === estado.actual);
+      }
+    }
+
+    function pintarAnuncio() {
+      var a = estado.anuncio;
+      $('anuncio').classList.toggle('visible', !!a);
+      if (!a) return;
+      $('anuncioTexto').textContent = 'En pantalla: ¡BINGO! Tabla N° ' + tabla4(a.tabla);
+      $('anuncioDetalle').textContent = bonito(a.nombre) + ' · ' + a.figura + ' · ' + pesos(a.premio);
+    }
+
+    function pintarHistorial() {
+      var h = $('historial');
+      h.textContent = '';
+      var lista = (estado.ganadores || []).slice().reverse();
+      if (!lista.length) { h.appendChild(el('li', '', 'Ninguno todavía.')); return; }
+      lista.forEach(function (g) {
+        h.appendChild(el('li', '', 'Ronda ' + g.ronda + ' · Tabla N° ' + tabla4(g.tabla) + ' · ' + bonito(g.nombre) + ' (' + g.codigo + ') · ' + g.figura + ' · ' + pesos(g.premio) + ' · ' + g.hora));
+      });
+    }
+
+    // ---------- Balotas ----------
+    function tocarNumero(n) {
+      $('tableroError').textContent = '';
+      if (!estado) return;
+      if (pendientes[n]) return;
+      if (estado.balotas.indexOf(n) >= 0) {
+        if (confirm('¿Quitar la balota ' + letraDe(n) + ' ' + n + '?')) accion({ accion: 'quitarBalota', balota: n });
+        return;
+      }
+      pendientes[n] = true;
+      pintarTablero();
+      accion({ accion: 'marcarBalota', balota: n }).finally(function () { delete pendientes[n]; if (estado) pintarTablero(); });
+    }
+
+    function deshacer() {
+      if (!estado || !estado.actual) return;
+      var n = estado.actual;
+      if (!confirm('¿Deshacer la última balota (' + letraDe(n) + ' ' + n + ')?')) return;
+      accion({ accion: 'deshacerBalota' });
+    }
+
+    function nuevaRonda() {
+      if (!confirm('¿Empezar una nueva ronda? Se borran las balotas cantadas (la figura, el premio y los ganadores confirmados se conservan).')) return;
+      accion({ accion: 'nuevaRonda' });
+    }
+
+    function ocultarAnuncio() { accion({ accion: 'ocultarAnuncio' }); }
+
+    // Ejecuta una acción en la fila y aplica el estado que devuelve.
+    function accion(datos, campoError) {
+      var errorEl = $(campoError || 'tableroError');
+      return enCola(function () {
+        return llamarApi(datos).then(function (r) {
+          if (r.estado === 'juego') { errorEl.textContent = ''; aplicar(r); return r; }
+          if (Array.isArray(r.balotas)) aplicar(r);
+          if (r.estado === 'balota_repetida') errorEl.textContent = 'La balota ' + r.balota + ' ya estaba cantada.';
+          else if (r.estado === 'balota_no_marcada') errorEl.textContent = 'La balota ' + r.balota + ' no estaba cantada.';
+          else if (r.estado === 'sin_balotas') errorEl.textContent = 'No hay balotas para deshacer.';
+          else errorEl.textContent = r.mensaje || ('Respuesta: ' + r.estado);
+          return r;
+        }).catch(function (e) {
+          if (textoError(e) !== 'clave') errorEl.textContent = 'No se guardó: ' + textoError(e);
+          refrescar();
+        });
+      });
+    }
+
+    // ---------- Figura ----------
+    function cambioFigura() {
+      var id = $('figura').value;
+      $('editor').style.display = id === 'personalizada' ? 'block' : 'none';
+      if (id === 'personalizada') { $('figuraNota').textContent = 'Vista de la figura que vas a aplicar.'; pintarMini($('figuraMini'), mascaraEditor); }
+      else pintarFiguraVista(id === (estado && estado.figura && estado.figura.id) ? estado.figura : null, id);
+    }
+
+    function pintarFigura() {
+      var f = estado.figura;
+      if (!f) return;
+      $('figura').value = f.id;
+      if (f.id === 'personalizada') {
+        mascaraEditor = f.mascaras[0];
+        $('nombreFigura').value = f.nombre;
+        pintarEditor();
+      }
+      cambioFigura();
+    }
+
+    function pintarFiguraVista(figura, id) {
+      if (figura) {
+        pintarMini($('figuraMini'), figura.mascaras[0]);
+        $('figuraNota').textContent = figura.mascaras.length > 1 ? 'Figura activa. Vale cualquiera de sus ' + figura.mascaras.length + ' variantes (se muestra una).' : 'Figura activa.';
+      } else {
+        $('figuraMini').textContent = '';
+        $('figuraNota').textContent = 'Pulsa "Aplicar figura" para usar: ' + (FIGURAS[id] || id) + '.';
+      }
+    }
+
+    function pintarMini(cont, mascara) {
+      cont.textContent = '';
+      for (var p = 0; p < 25; p++) {
+        var d = el('div', (p === 12 ? 'centro ' : '') + (mascara.charAt(p) === '1' && p !== 12 ? 'on' : ''));
+        cont.appendChild(d);
+      }
+    }
+
+    function construirEditor() {
+      var g = $('editorGrilla');
+      if (g.childNodes.length) return;
+      for (var p = 0; p < 25; p++) {
+        var d = el('div', p === 12 ? 'centro' : '');
+        d.onclick = (function (pos) { return function () {
+          if (pos === 12) return;
+          var a = mascaraEditor.split('');
+          a[pos] = a[pos] === '1' ? '0' : '1';
+          mascaraEditor = a.join('');
+          pintarEditor();
+          pintarMini($('figuraMini'), mascaraEditor);
+        }; })(p);
+        g.appendChild(d);
+      }
+      pintarEditor();
+    }
+
+    function pintarEditor() {
+      var hijos = $('editorGrilla').childNodes;
+      for (var p = 0; p < 25; p++) hijos[p].classList.toggle('on', p !== 12 && mascaraEditor.charAt(p) === '1');
+    }
+
+    function aplicarFigura() {
+      var id = $('figura').value;
+      var datos = { accion: 'fijarFigura', id: id };
+      if (id === 'personalizada') {
+        if (!/1/.test(mascaraEditor.slice(0, 12) + mascaraEditor.slice(13))) { $('figuraError').textContent = 'Marca al menos una casilla.'; return; }
+        datos.mascara = mascaraEditor;
+        datos.nombre = $('nombreFigura').value.trim();
+      }
+      $('figuraError').textContent = '';
+      $('btnFigura').disabled = true;
+      accion(datos, 'figuraError').finally(function () { $('btnFigura').disabled = false; });
+    }
+
+    // ---------- Premio ----------
+    $('premio').addEventListener('input', function () {
+      var dig = this.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 12);
+      this.value = dig ? pesos(Number(dig)) : '';
+      $('premioError').textContent = '';
+    });
+    $('premio').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') fijarPremio(); });
+    $('premio').addEventListener('blur', function () { if (estado && !this.value) this.value = estado.premio ? pesos(estado.premio) : ''; });
+
+    function fijarPremio() {
+      var dig = $('premio').value.replace(/\D/g, '');
+      if (!dig) { $('premioError').textContent = 'Escribe el premio en pesos.'; return; }
+      $('btnPremio').disabled = true;
+      accion({ accion: 'fijarPremio', premio: Number(dig) }, 'premioError').finally(function () { $('btnPremio').disabled = false; $('premio').blur(); });
+    }
+
+    // ---------- Ganadores ----------
+    function programarGanadores() {
+      clearTimeout(ganTimer);
+      ganTimer = setTimeout(function () { calcularGanadores(false); }, 700);
+    }
+
+    async function calcularGanadores(manual) {
+      if (calculando) { recalcular = true; return; }
+      calculando = true;
+      $('btnGanadores').disabled = true;
+      $('btnGanadores').textContent = 'Calculando...';
+      try {
+        var r = await llamarApi({ accion: 'ganadores' });
+        if (r.estado === 'ganadores') pintarGanadores(r);
+        else $('resumenGan').textContent = r.mensaje || 'No se pudo calcular.';
+      } catch (e) {
+        if (textoError(e) !== 'clave') $('resumenGan').textContent = 'No se pudo calcular: ' + textoError(e);
+      } finally {
+        calculando = false;
+        $('btnGanadores').disabled = false;
+        $('btnGanadores').textContent = 'Calcular ganadores';
+        if (recalcular) { recalcular = false; calcularGanadores(false); }
+      }
+    }
+
+    function pintarGanadores(r) {
+      $('resumenGan').textContent = 'Ronda ' + r.ronda + ' · ' + r.figura + ' · ' + r.balotas + ' balotas · ' +
+        r.enJuego + ' tablas en juego (con ingreso) · ' + r.casi + ' a una balota · calculado ' + hora();
+      var cont = $('ganadores');
+      cont.textContent = '';
+      if (!r.ganadores.length) cont.appendChild(el('p', 'tenue', 'Todavía no hay ganadores con esta figura.'));
+      r.ganadores.forEach(function (g) {
+        var caja = el('div', 'ganador' + (g.confirmado ? ' confirmado' : ''));
+        var cab = el('div', 'cab');
+        cab.appendChild(el('span', 'tabla', 'Tabla N° ' + tabla4(g.tabla)));
+        cab.appendChild(el('span', 'tenue', g.serie || ''));
+        caja.appendChild(cab);
+        caja.appendChild(el('div', 'nombre', bonito(g.nombre)));
+        caja.appendChild(el('div', 'tenue', g.codigo + ' · completó con la balota ' + (g.conBalota ? letraDe(g.conBalota) + ' ' + g.conBalota : '–') + ' (n.º ' + g.orden + ' cantada)'));
+        caja.appendChild(carton(g));
+        var b = el('button', g.confirmado ? 'sec ancho' : 'exito ancho', g.confirmado ? '✔ Ganador confirmado' : 'Confirmar ganador');
+        b.disabled = !!g.confirmado;
+        b.onclick = function () { confirmarGanador(g, b); };
+        caja.appendChild(b);
+        cont.appendChild(caja);
+      });
+      var av = $('avisosGan');
+      av.textContent = '';
+      if (r.sinDatos && r.sinDatos.length) av.appendChild(el('div', 'aviso', 'Tablas registradas en el ingreso que no están en la hoja "Tablas" (no pueden ganar): ' + r.sinDatos.join(', ')));
+      if (r.inactivasConIngreso && r.inactivasConIngreso.length) av.appendChild(el('div', 'aviso', 'Tablas con ingreso pero por confirmar (desactivadas, no pueden ganar): ' + r.inactivasConIngreso.join(', ')));
+    }
+
+    function carton(g) {
+      var c = el('div', 'carton');
+      LETRAS.forEach(function (L) { c.appendChild(el('div', 'l', L)); });
+      for (var p = 0; p < 25; p++) {
+        var d;
+        if (p === 12) d = el('div', 'centro', tabla4(g.tabla));
+        else {
+          d = el('div', (g.marcadas[p] ? 'marcada ' : '') + (g.mascara.charAt(p) === '1' ? 'figura' : ''), String(g.grilla[p]).padStart(2, '0'));
+        }
+        c.appendChild(d);
+      }
+      return c;
+    }
+
+    function confirmarGanador(g, boton) {
+      if (!confirm('¿Confirmar como ganador la Tabla N° ' + tabla4(g.tabla) + ' de ' + bonito(g.nombre) + '?\nSe anota en la hoja "Ganadores" y se muestra en la pantalla.')) return;
+      boton.disabled = true;
+      boton.textContent = 'Confirmando...';
+      enCola(function () {
+        return llamarApi({ accion: 'confirmarGanador', tabla: g.tabla }).then(function (r) {
+          if (Array.isArray(r.balotas)) aplicar(r);
+          if (r.estado === 'juego') {
+            boton.textContent = '✔ Ganador confirmado';
+            if (r.avisoHoja) alert(r.avisoHoja);
+          } else {
+            boton.disabled = false;
+            boton.textContent = 'Confirmar ganador';
+            alert(r.estado === 'no_gana' ? 'La Tabla N° ' + tabla4(r.tabla) + ' ya no completa la figura (¿se quitó una balota?).' :
+              r.estado === 'ya_confirmado' ? 'Esa tabla ya fue confirmada en esta ronda.' : (r.mensaje || r.estado));
+          }
+          calcularGanadores(false);
+        }).catch(function (e) {
+          boton.disabled = false;
+          boton.textContent = 'Confirmar ganador';
+          if (textoError(e) !== 'clave') alert('No se confirmó: ' + textoError(e));
+        });
+      });
+    }
+
+    // ---------- Tablas por confirmar ----------
+    async function cargarRevisar() {
+      try {
+        var r = await llamarApi({ accion: 'listarTablas' });
+        if (r.estado === 'tablas') pintarRevisar(r);
+        else $('revisar').textContent = r.mensaje || 'No se pudo leer la hoja "Tablas".';
+      } catch (e) {
+        if (textoError(e) !== 'clave') $('revisar').textContent = 'No se pudo leer: ' + textoError(e);
+      }
+    }
+
+    function pintarRevisar(r) {
+      var cont = $('revisar');
+      cont.textContent = '';
+      cont.appendChild(el('p', 'tenue', r.total + ' tablas cargadas · ' + r.activas + ' activas.'));
+      if (!r.revisar.length) { cont.appendChild(el('p', 'tenue', 'No hay tablas por confirmar.')); return; }
+      r.revisar.forEach(function (t) {
+        var fila = el('div', 'tablaRevisar');
+        var info = el('div');
+        info.appendChild(el('strong', '', 'Tabla N° ' + tabla4(t.tabla) + ' '));
+        info.appendChild(el('span', 'estadoTabla ' + (t.activa ? 'si' : 'no'), t.activa ? 'ACTIVA' : 'DESACTIVADA'));
+        if (t.nota) info.appendChild(el('div', 'tenue', t.nota));
+        var b = el('button', t.activa ? 'peligro' : 'exito', t.activa ? 'Desactivar' : 'Activar');
+        b.style.flex = '0 0 auto';
+        b.onclick = function () {
+          var activar = !t.activa;
+          if (!confirm((activar ? '¿Activar' : '¿Desactivar') + ' la Tabla N° ' + tabla4(t.tabla) + '?' + (activar ? '\nPodrá ganar si tiene ingreso.' : '\nNo podrá ganar.'))) return;
+          b.disabled = true;
+          llamarApi({ accion: 'activarTabla', tabla: t.tabla, activa: activar }).then(function (res) {
+            if (res.estado === 'tablas') { $('revisarError').textContent = ''; pintarRevisar(res); programarGanadores(); }
+            else { b.disabled = false; $('revisarError').textContent = res.mensaje || res.estado; }
+          }).catch(function (e) { b.disabled = false; if (textoError(e) !== 'clave') $('revisarError').textContent = textoError(e); });
+        };
+        fila.appendChild(info);
+        fila.appendChild(b);
+        cont.appendChild(fila);
+      });
+    }
+
+    // Si la pestaña se recarga, intenta entrar con la clave de esta sesión.
+    (function () {
+      var guardada = null;
+      try { guardada = sessionStorage.getItem('claveJuego'); } catch (e) {}
+      if (guardada) { $('clave').value = guardada; entrar(); }
+    })();
+  </script>
+</body>
+</html>
