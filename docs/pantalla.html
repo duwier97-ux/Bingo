@@ -94,15 +94,43 @@
       background: rgba(2, 6, 23, .78);
     }
     #anuncio.visible { display: flex; }
+    #confeti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
     #anuncio .caja {
-      text-align: center; padding: 5vh 6vw; border-radius: 3vh; border: .6vh solid #fbbf24;
+      position: relative; z-index: 1; display: flex; align-items: center; gap: 4vw; max-width: 95vw;
+      text-align: center; padding: 4vh 4vw; border-radius: 3vh; border: .6vh solid #fbbf24;
       background: linear-gradient(160deg, #16a34a, #15803d); box-shadow: 0 2vh 6vh rgba(0, 0, 0, .7);
       animation: entra .9s cubic-bezier(.2, 1.4, .4, 1);
     }
-    #anuncio .bingo { font-size: 16vh; font-weight: 900; letter-spacing: 1vh; color: #fde68a; text-shadow: 0 .8vh 2vh rgba(0, 0, 0, .5); line-height: 1; }
-    #anuncio .tabla { font-size: 8vh; font-weight: 900; margin-top: 2vh; }
-    #anuncio .nombre { font-size: 6vh; font-weight: 800; margin-top: 1vh; }
-    #anuncio .detalle { font-size: 4vh; margin-top: 2vh; color: #fef9c3; }
+    #anuncio .texto { min-width: 0; max-width: 46vw; }
+    #anuncio .bingo { font-size: 15vh; font-weight: 900; letter-spacing: 1vh; color: #fde68a; text-shadow: 0 .8vh 2vh rgba(0, 0, 0, .5); line-height: 1; }
+    #anuncio .tabla { font-size: 7.5vh; font-weight: 900; margin-top: 2vh; line-height: 1.1; }
+    #anuncio .nombre { font-size: 5.5vh; font-weight: 800; margin-top: 1.2vh; line-height: 1.15; overflow-wrap: anywhere; }
+    #anuncio .detalle { font-size: 3.6vh; margin-top: 2vh; color: #fef9c3; }
+    #anuncio .premioGanador { font-size: 8vh; font-weight: 900; margin-top: .6vh; color: #fde68a; text-shadow: 0 .5vh 1.2vh rgba(0, 0, 0, .45); line-height: 1.1; }
+    .carton {
+      flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 10.5vh); gap: .8vh; padding: 1.4vh;
+      background: #fff; border-radius: 2vh; box-shadow: 0 1vh 3vh rgba(0, 0, 0, .45);
+    }
+    .carton[hidden] { display: none; }
+    .carton div { display: flex; align-items: center; justify-content: center; border-radius: 1.2vh; font-weight: 900; }
+    .carton .cab { height: 7vh; font-size: 5.5vh; color: #fff; background: var(--c); text-shadow: 0 .3vh .6vh rgba(0, 0, 0, .35); }
+    .carton .c { height: 10.5vh; font-size: 5.2vh; color: #94a3b8; background: #f1f5f9; border: .3vh solid #cbd5e1; }
+    .carton .c.salio { color: #fff; background: var(--c); border-color: var(--c); text-shadow: 0 .3vh .6vh rgba(0, 0, 0, .4); }
+    .carton .c.fig { box-shadow: 0 0 0 .55vh #fbbf24; }
+    .carton .c.centro { flex-direction: column; color: #fde68a; background: #7c3aed; border-color: #7c3aed; font-size: 3.6vh; line-height: 1; }
+    .carton .c.centro small { font-size: 1.8vh; letter-spacing: .2vh; color: #ede9fe; margin-bottom: .4vh; }
+
+    /* Sonido */
+    #sonidoPanel { position: fixed; inset: 0; z-index: 25; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, .72); }
+    #sonidoPanel.visible { display: flex; }
+    #sonidoPanel .caja { text-align: center; padding: 5vh 5vw; border-radius: 3vh; background: rgba(15, 23, 42, .96); border: .4vh solid #fbbf24; box-shadow: 0 2vh 6vh rgba(0, 0, 0, .7); }
+    #sonidoPanel h2 { margin: 0 0 1vh; font-size: 5vh; color: #fde68a; }
+    #sonidoPanel p { margin: 0 0 3vh; font-size: 2.6vh; color: #cbd5e1; }
+    #btnActivarSonido { font-size: 4.5vh; font-weight: 900; padding: 2.2vh 5vw; border: 0; border-radius: 2vh; color: #fff; cursor: pointer; background: linear-gradient(90deg, #16a34a, #22c55e); box-shadow: 0 1vh 2.5vh rgba(0, 0, 0, .5); }
+    #btnSinSonido { display: block; margin: 2.4vh auto 0; font-size: 2.2vh; background: none; border: 0; color: #94a3b8; text-decoration: underline; cursor: pointer; }
+    #btnSonido { position: fixed; left: 12vw; bottom: .8vh; z-index: 26; padding: .6vh 1vw; font-size: 1.8vh; font-weight: 800; border: 0; border-radius: .8vh; color: #fff; cursor: pointer; display: none; }
+    #btnSonido.apagado { background: #b91c1c; opacity: .95; }
+    #btnSonido.activo { background: rgba(22, 163, 74, .8); opacity: .7; }
 
     #conexion { position: fixed; right: 1vw; bottom: .6vh; font-size: 1.6vh; opacity: .5; z-index: 5; }
     #conexion.mal { opacity: 1; color: #fca5a5; font-weight: 800; font-size: 2.2vh; }
@@ -152,16 +180,31 @@
   </div>
 
   <div id="anuncio">
+    <canvas id="confeti"></canvas>
     <div class="caja">
-      <div class="bingo">¡BINGO!</div>
-      <div class="tabla" id="anTabla"></div>
-      <div class="nombre" id="anNombre"></div>
-      <div class="detalle" id="anDetalle"></div>
+      <div class="carton" id="anCarton" hidden></div>
+      <div class="texto">
+        <div class="bingo">¡BINGO!</div>
+        <div class="tabla" id="anTabla"></div>
+        <div class="nombre" id="anNombre"></div>
+        <div class="detalle" id="anDetalle"></div>
+        <div class="premioGanador" id="anPremio"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sonidoPanel">
+    <div class="caja">
+      <h2>🔊 Sonido de la pantalla</h2>
+      <p>El navegador necesita un toque para poder sonar al anunciar un ganador.</p>
+      <button id="btnActivarSonido" onclick="activarSonido()">Activar sonido</button>
+      <button id="btnSinSonido" onclick="seguirSinSonido()">Seguir sin sonido</button>
     </div>
   </div>
 
   <div id="conexion"></div>
   <button id="btnPantalla" onclick="pantallaCompleta()">Pantalla completa</button>
+  <button id="btnSonido" class="apagado" onclick="alternarSonido()">🔇 Sin sonido · tocar para activar</button>
 
   <div id="login">
     <div class="caja">
@@ -186,6 +229,8 @@
     var ultimaActual = null;
     var temporizador = null;
     var fallos = 0;
+    var primerEstado = true;   // el primer estado tras abrir la página no suena
+    var anunciosVistos = {};   // ganadores ya anunciados (para sonar una sola vez)
 
     function $(id) { return document.getElementById(id); }
     function letraDe(n) { return LETRAS[Math.floor((n - 1) / 15)]; }
@@ -220,6 +265,7 @@
         } catch (e) {}
         $('loginError').textContent = '';
         $('login').style.display = 'none';
+        mostrarAvisoSonido();
         construirTablero();
         sondear();
       } catch (e) {
@@ -343,11 +389,228 @@
       var an = r.anuncio;
       $('anuncio').classList.toggle('visible', !!an);
       if (an) {
-        $('anTabla').textContent = 'Tabla N° ' + String(an.tabla).padStart(4, '0');
+        $('anTabla').textContent = 'Tabla N° ' + tabla4(an.tabla);
         $('anNombre').textContent = bonito(an.nombre);
-        $('anDetalle').textContent = an.figura + (an.premio ? ' · ' + COP.format(an.premio) : '');
+        $('anDetalle').textContent = an.figura || '';
+        $('anPremio').textContent = an.premio ? COP.format(an.premio) : '';
+        pintarCarton(an, salieron);
+        // Sonido una sola vez por ganador confirmado; nunca por un anuncio que ya estaba al abrir la página.
+        var id = idAnuncio(an);
+        if (!anunciosVistos[id]) {
+          anunciosVistos[id] = true;
+          if (!primerEstado) celebrar();
+        }
+        confeti.iniciar();
+      } else {
+        confeti.detener();
+      }
+      primerEstado = false;
+    }
+
+    function tabla4(n) { return String(n).padStart(4, '0'); }
+    function idAnuncio(an) { return [an.ronda, an.tabla, an.hora, an.balotas].join('|'); }
+
+    // Cartón del ganador: balotas que salieron pintadas, figura con borde dorado y centro libre con el N° de tabla.
+    function pintarCarton(an, salieron) {
+      var c = $('anCarton');
+      c.textContent = '';
+      var g = an.grilla;
+      if (!g || g.length !== 25) { c.hidden = true; return; }
+      c.hidden = false;
+      LETRAS.forEach(function (L) {
+        var h = document.createElement('div');
+        h.className = 'cab';
+        h.textContent = L;
+        h.style.setProperty('--c', COLORES[L]);
+        c.appendChild(h);
+      });
+      var m = String(an.mascara || '');
+      for (var p = 0; p < 25; p++) {
+        var d = document.createElement('div');
+        var col = LETRAS[p % 5];
+        d.style.setProperty('--c', COLORES[col]);
+        if (p === 12) {
+          d.className = 'c centro';
+          d.innerHTML = '<small>LIBRE</small>';
+          d.appendChild(document.createTextNode(tabla4(an.tabla)));
+        } else {
+          d.className = 'c' + (salieron[g[p]] ? ' salio' : '') + (m.charAt(p) === '1' ? ' fig' : '');
+          d.textContent = g[p];
+        }
+        c.appendChild(d);
       }
     }
+
+    // ---------- Confeti (canvas, sin librerías) ----------
+    var confeti = (function () {
+      var lienzo = $('confeti'), ctx = lienzo.getContext('2d');
+      var piezas = [], activo = false, cuadro = null, ancho = 0, alto = 0;
+      var TONOS = ['#fbbf24', '#f43f5e', '#22c55e', '#3b82f6', '#a855f7', '#f97316', '#fde68a', '#ffffff'];
+      function medir() {
+        var r = window.devicePixelRatio || 1;
+        ancho = lienzo.clientWidth; alto = lienzo.clientHeight;
+        lienzo.width = Math.round(ancho * r); lienzo.height = Math.round(alto * r);
+        ctx.setTransform(r, 0, 0, r, 0, 0);
+      }
+      function nueva(arriba) {
+        return {
+          x: Math.random() * ancho, y: arriba ? -20 - Math.random() * alto * 0.3 : Math.random() * alto,
+          w: 6 + Math.random() * 9, h: 8 + Math.random() * 12, vx: -1.2 + Math.random() * 2.4, vy: 1.6 + Math.random() * 3.2,
+          giro: Math.random() * 6.28, vg: -0.12 + Math.random() * 0.24, osc: Math.random() * 6.28,
+          color: TONOS[Math.floor(Math.random() * TONOS.length)], redonda: Math.random() < 0.25
+        };
+      }
+      function paso() {
+        if (!activo) return;
+        ctx.clearRect(0, 0, ancho, alto);
+        for (var i = 0; i < piezas.length; i++) {
+          var p = piezas[i];
+          p.osc += 0.05; p.x += p.vx + Math.sin(p.osc) * 0.8; p.y += p.vy; p.giro += p.vg;
+          if (p.y > alto + 30) piezas[i] = nueva(true);
+          ctx.save();
+          ctx.translate(p.x, p.y); ctx.rotate(p.giro); ctx.scale(1, Math.cos(p.osc * 1.6));
+          ctx.fillStyle = p.color;
+          if (p.redonda) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, 6.28); ctx.fill(); }
+          else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        }
+        cuadro = requestAnimationFrame(paso);
+      }
+      window.addEventListener('resize', function () { if (activo) medir(); });
+      return {
+        iniciar: function () {
+          if (activo) return;
+          activo = true; medir();
+          piezas = [];
+          var n = Math.min(260, Math.round(ancho * alto / 7000));
+          for (var i = 0; i < n; i++) piezas.push(nueva(i % 2 === 0));
+          cuadro = requestAnimationFrame(paso);
+        },
+        detener: function () {
+          activo = false; cancelAnimationFrame(cuadro); piezas = [];
+          ctx.clearRect(0, 0, ancho, alto);
+        },
+        activo: function () { return activo; }
+      };
+    })();
+
+    // ---------- Sonido ----------
+    // Los navegadores no dejan sonar una página hasta que alguien la toca: se pide un toque al entrar.
+    var audioCtx = null, sonidoActivo = false, audioMp3 = null, ruidoBuf = null;
+
+    // Si existe docs/audio/bingo.mp3 se usa en lugar de la voz del navegador.
+    fetch('audio/bingo.mp3', { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+      var tipo = r.headers.get('content-type') || '';
+      if (r.ok && !/html/i.test(tipo)) { audioMp3 = new Audio('audio/bingo.mp3'); audioMp3.preload = 'auto'; }
+    }).catch(function () {});
+
+    function mostrarAvisoSonido() {
+      if (!sonidoActivo) $('sonidoPanel').classList.add('visible');
+      $('btnSonido').style.display = 'block';
+    }
+    function marcarSonido(on) {
+      sonidoActivo = on;
+      var b = $('btnSonido');
+      b.className = on ? 'activo' : 'apagado';
+      b.textContent = on ? '🔊 Sonido activo' : '🔇 Sin sonido · tocar para activar';
+    }
+    function activarSonido() {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC && !audioCtx) audioCtx = new AC();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx) { // pulso silencioso para desbloquear la salida
+          var s = audioCtx.createBufferSource();
+          s.buffer = audioCtx.createBuffer(1, 1, 22050);
+          s.connect(audioCtx.destination); s.start(0);
+        }
+        if (window.speechSynthesis) { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }
+        if (audioMp3) { audioMp3.muted = true; var pr = audioMp3.play(); if (pr) pr.then(function () { audioMp3.pause(); audioMp3.currentTime = 0; audioMp3.muted = false; }).catch(function () { audioMp3.muted = false; }); }
+      } catch (e) {}
+      marcarSonido(true);
+      $('sonidoPanel').classList.remove('visible');
+    }
+    function seguirSinSonido() { marcarSonido(false); $('sonidoPanel').classList.remove('visible'); }
+    function alternarSonido() { if (sonidoActivo) marcarSonido(false); else activarSonido(); }
+
+    function celebrar() {
+      if (!sonidoActivo) return;
+      var espera = 0;
+      try { espera = redoble(); } catch (e) {}
+      setTimeout(decirBingo, espera * 1000);
+    }
+
+    // Redoble de tambor con Web Audio: golpes de ruido filtrado cada vez más rápidos y fuertes, y un platillo al final.
+    function redoble() {
+      if (!audioCtx) return 0;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      var ac = audioCtx;
+      if (!ruidoBuf) {
+        ruidoBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+        var d = ruidoBuf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      var salida = ac.createGain();
+      salida.gain.value = 0.9;
+      salida.connect(ac.destination);
+      var t0 = ac.currentTime + 0.05, dur = 2.3, t = t0;
+      while (t < t0 + dur) {
+        var p = (t - t0) / dur;
+        golpe(t, 0.12 + 0.55 * p * p);
+        t += 0.075 - 0.04 * p + Math.random() * 0.006;
+      }
+      // Bombo + platillo final
+      var fin = t0 + dur;
+      var o = ac.createOscillator(), go = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, fin); o.frequency.exponentialRampToValueAtTime(45, fin + 0.35);
+      go.gain.setValueAtTime(1, fin); go.gain.exponentialRampToValueAtTime(0.001, fin + 0.6);
+      o.connect(go); go.connect(salida); o.start(fin); o.stop(fin + 0.65);
+      var pl = ac.createBufferSource(), hp = ac.createBiquadFilter(), gp = ac.createGain();
+      pl.buffer = ruidoBuf; pl.loop = true;
+      hp.type = 'highpass'; hp.frequency.value = 5000;
+      gp.gain.setValueAtTime(0.0001, fin); gp.gain.exponentialRampToValueAtTime(0.6, fin + 0.01); gp.gain.exponentialRampToValueAtTime(0.001, fin + 1.8);
+      pl.connect(hp); hp.connect(gp); gp.connect(salida); pl.start(fin); pl.stop(fin + 1.9);
+      return dur + 0.45;
+
+      function golpe(tt, vol) {
+        var s = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain();
+        s.buffer = ruidoBuf;
+        bp.type = 'bandpass'; bp.frequency.value = 1700 + Math.random() * 300; bp.Q.value = 0.8;
+        g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(vol, tt + 0.004); g.gain.exponentialRampToValueAtTime(0.001, tt + 0.1);
+        s.connect(bp); bp.connect(g); g.connect(salida);
+        s.start(tt, Math.random() * 0.8, 0.12);
+        var tono = ac.createOscillator(), gt = ac.createGain(); // cuerpo del tambor
+        tono.type = 'triangle'; tono.frequency.value = 185;
+        gt.gain.setValueAtTime(vol * 0.35, tt); gt.gain.exponentialRampToValueAtTime(0.001, tt + 0.07);
+        tono.connect(gt); gt.connect(salida); tono.start(tt); tono.stop(tt + 0.08);
+      }
+    }
+
+    function decirBingo() {
+      if (audioMp3) {
+        audioMp3.currentTime = 0;
+        var pr = audioMp3.play();
+        if (pr) pr.catch(hablarBingo);
+        return;
+      }
+      hablarBingo();
+    }
+    function hablarBingo() {
+      if (!window.speechSynthesis) return;
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance('¡Bingo!');
+      u.lang = 'es-CO'; u.rate = 0.9; u.pitch = 1.1; u.volume = 1;
+      var voces = speechSynthesis.getVoices().filter(function (v) { return /^es/i.test(v.lang); });
+      var pref = ['es-CO', 'es-MX', 'es-US', 'es-419', 'es-ES'];
+      voces.sort(function (a, b) {
+        var ia = pref.indexOf(a.lang.replace('_', '-')), ib = pref.indexOf(b.lang.replace('_', '-'));
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      if (voces[0]) { u.voice = voces[0]; u.lang = voces[0].lang; }
+      speechSynthesis.speak(u);
+    }
+    if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); }; }
 
     function pantallaCompleta() {
       var d = document.documentElement;
