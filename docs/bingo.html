@@ -245,6 +245,13 @@
             <h2>Ganadores confirmados</h2>
             <ul id="historial" class="tenue"><li>Ninguno todavía.</li></ul>
           </div>
+
+          <div class="panel" id="panelReinicio">
+            <h2>Antes del evento</h2>
+            <p class="tenue" style="margin-top:0">Deja el juego como nuevo: ronda 1, sin balotas, quita el anuncio de la TV, borra los ganadores confirmados y vacía la hoja "Ganadores" (conserva los encabezados). No toca las tablas, el ingreso, los asistentes ni las claves. La figura y el premio se conservan.</p>
+            <button class="peligro ancho" id="btnReiniciar" onclick="reiniciarJuego()">Reiniciar todo el juego</button>
+            <p class="error" id="reinicioError"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -474,6 +481,26 @@
     }
 
     function ocultarAnuncio() { accion({ accion: 'ocultarAnuncio' }); }
+
+    function reiniciarJuego() {
+      $('reinicioError').textContent = '';
+      var txt = prompt('Esto deja el juego como nuevo:\n· Ronda 1 y sin balotas\n· Quita el anuncio de la TV\n· Borra los ganadores confirmados y vacía la hoja "Ganadores"\n\nNo toca las tablas, el ingreso, los asistentes ni las claves.\n\nPara confirmar, escribe REINICIAR:');
+      if (txt === null) return;
+      if (txt.trim() !== 'REINICIAR') { $('reinicioError').textContent = 'No se reinició: había que escribir REINICIAR (en mayúsculas).'; return; }
+      $('btnReiniciar').disabled = true;
+      $('btnReiniciar').textContent = 'Reiniciando...';
+      accion({ accion: 'reiniciarJuego', confirmacion: 'REINICIAR' }, 'reinicioError').then(function (r) {
+        if (r && r.estado === 'juego' && r.reiniciado) {
+          $('ganadores').textContent = '';
+          $('avisosGan').textContent = '';
+          calcularGanadores(false);
+          alert('Juego reiniciado. Ronda 1, sin balotas.' + (r.filasBorradas ? '\nSe borraron ' + r.filasBorradas + ' filas de la hoja "Ganadores".' : '') + (r.avisoHoja ? '\n\nAtención: ' + r.avisoHoja : ''));
+        }
+      }).finally(function () {
+        $('btnReiniciar').disabled = false;
+        $('btnReiniciar').textContent = 'Reiniciar todo el juego';
+      });
+    }
 
     // Ejecuta una acción en la fila y aplica el estado que devuelve.
     function accion(datos, campoError) {

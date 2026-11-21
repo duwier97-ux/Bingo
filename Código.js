@@ -271,7 +271,7 @@ const ACCIONES_JUEGO = {
   validarClave: 'lectura', estado: 'lectura',
   marcarBalota: 'juego', quitarBalota: 'juego', deshacerBalota: 'juego',
   fijarFigura: 'juego', fijarPremio: 'juego',
-  ganadores: 'juego', confirmarGanador: 'juego', ocultarAnuncio: 'juego', nuevaRonda: 'juego',
+  ganadores: 'juego', confirmarGanador: 'juego', ocultarAnuncio: 'juego', nuevaRonda: 'juego', reiniciarJuego: 'juego',
   listarTablas: 'juego', activarTabla: 'juego', cargarTablas: 'juego'
 };
 
@@ -293,6 +293,7 @@ function atenderJuego_(accion, datos) {
     case 'confirmarGanador': return confirmarGanador_(datos.tabla);
     case 'ocultarAnuncio': return mutarEstado_(function (e) { e.anuncio = null; });
     case 'nuevaRonda': return mutarEstado_(function (e) { e.ronda++; e.balotas = []; e.anuncio = null; });
+    case 'reiniciarJuego': return reiniciarJuego_(datos.confirmacion);
     case 'listarTablas': return listarTablas_();
     case 'activarTabla': return activarTabla_(datos.tabla, datos.activa);
     case 'cargarTablas': return cargarTablas_(datos.tablas);
@@ -592,6 +593,31 @@ function anotarGanadorEnHoja_(g) {
     hoja.setFrozenRows(1);
   }
   hoja.appendRow([g.hora, g.ronda, g.tabla, g.nombre, g.codigo, g.figura, g.premio, g.balotas, g.conBalota]);
+}
+
+// Deja el juego como nuevo antes del evento: ronda 1, sin balotas, sin anuncio, sin historial de ganadores,
+// y la hoja "Ganadores" vacía (se conserva la fila 1 de encabezados). La figura y el premio se conservan.
+// NO toca las hojas "Tablas" ni "Base de datos" ni las claves.
+function reiniciarJuego_(confirmacion) {
+  if (String(confirmacion || '').trim() !== 'REINICIAR') return { estado: 'error', mensaje: 'Para reiniciar escribe la palabra REINICIAR.' };
+  let filasBorradas = 0, avisoHoja = '';
+  const r = mutarEstado_(function (e) {
+    try {
+      const hoja = SpreadsheetApp.openById(ID_HOJA).getSheetByName(HOJA_GANADORES);
+      if (hoja && hoja.getLastRow() >= 2) {
+        filasBorradas = hoja.getLastRow() - 1;
+        hoja.getRange(2, 1, filasBorradas, Math.max(1, hoja.getLastColumn())).clearContent();
+        SpreadsheetApp.flush();
+      }
+    } catch (err) {
+      avisoHoja = 'No se pudo vaciar la hoja "' + HOJA_GANADORES + '": ' + String((err && err.message) || err);
+    }
+    e.ronda = 1; e.balotas = []; e.anuncio = null; e.ganadores = [];
+  });
+  r.reiniciado = true;
+  r.filasBorradas = filasBorradas;
+  if (avisoHoja) r.avisoHoja = avisoHoja;
+  return r;
 }
 
 function listarTablas_() {
