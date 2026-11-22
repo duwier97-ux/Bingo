@@ -136,6 +136,51 @@
     .carton .c.centro { flex-direction: column; color: #fde68a; background: #7c3aed; border-color: #7c3aed; font-size: 3.6vh; line-height: 1; }
     .carton .c.centro small { font-size: 1.8vh; letter-spacing: .2vh; color: #ede9fe; margin-bottom: .4vh; }
 
+    /* Sorteo adicional: capa propia, aparte del anuncio del bingo */
+    #sorteoCapa {
+      position: fixed; inset: 0; z-index: 21; display: none; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, rgba(88, 28, 135, .88), rgba(2, 6, 23, .94) 70%);
+    }
+    #sorteoCapa.visible { display: flex; }
+    #confetiSorteo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+    #sorteoCapa .caja {
+      position: relative; z-index: 1; width: min(84vw, 150vh); text-align: center; padding: 4vh 4vw; border-radius: 3vh;
+      background: linear-gradient(160deg, rgba(76, 29, 149, .95), rgba(30, 27, 75, .95)); border: .6vh solid #fbbf24;
+      box-shadow: 0 2vh 6vh rgba(0, 0, 0, .7); animation: entra .9s cubic-bezier(.2, 1.4, .4, 1);
+    }
+    #sorteoCapa .titulo { font-size: 5vh; font-weight: 900; letter-spacing: .8vh; color: #fde68a; text-shadow: 0 .5vh 1.2vh rgba(0, 0, 0, .5); }
+    #sorteoPremioTv { font-size: 6vh; font-weight: 900; margin-top: 1vh; line-height: 1.1; overflow-wrap: anywhere; }
+    #sorteoEntre { font-size: 2.8vh; color: #ddd6fe; margin-top: 1vh; }
+    .tambor {
+      position: relative; height: 42vh; margin: 3vh auto 0; width: min(70vw, 120vh); overflow: hidden; border-radius: 2.4vh;
+      background: linear-gradient(#0f172a, #1e293b 50%, #0f172a); border: .4vh solid rgba(251, 191, 36, .6);
+      box-shadow: inset 0 2vh 3vh rgba(0, 0, 0, .7), inset 0 -2vh 3vh rgba(0, 0, 0, .7);
+    }
+    .tambor[hidden] { display: none; }
+    .tambor .ventana {
+      position: absolute; left: 2%; right: 2%; top: 14vh; height: 14vh; border-radius: 1.6vh; z-index: 2; pointer-events: none;
+      border: .6vh solid #fbbf24; box-shadow: 0 0 3vh rgba(251, 191, 36, .55), inset 0 0 2vh rgba(251, 191, 36, .25);
+    }
+    .tambor .sombra { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+      background: linear-gradient(rgba(15, 23, 42, .95), rgba(15, 23, 42, 0) 30%, rgba(15, 23, 42, 0) 70%, rgba(15, 23, 42, .95)); }
+    .tambor .tira { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+    .tambor .tira div {
+      height: 14vh; display: flex; align-items: center; justify-content: center;
+      font-size: 10vh; font-weight: 900; letter-spacing: .6vh; color: #e2e8f0; font-variant-numeric: tabular-nums;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    .tambor .tira div.gana { color: #fde68a; }
+    #sorteoResultado[hidden] { display: none; }
+    #sorteoResultado { margin-top: 3vh; animation: entra .9s cubic-bezier(.2, 1.4, .4, 1); }
+    #sorteoResultado .gano { font-size: 4.4vh; font-weight: 900; color: #86efac; letter-spacing: .4vh; }
+    #sorteoCodigoTv {
+      display: inline-block; margin-top: 1.4vh; padding: 1.4vh 4vw; border-radius: 2vh; font-size: 15vh; font-weight: 900; line-height: 1;
+      color: #7f1d1d; background: radial-gradient(circle at 35% 30%, #fff, #fde68a 60%, #f59e0b); border: .7vh solid #dc2626;
+      box-shadow: 0 1vh 3vh rgba(0, 0, 0, .55); letter-spacing: .5vh; animation: latido 1.3s ease-in-out infinite;
+    }
+    #sorteoNombreTv { font-size: 6.5vh; font-weight: 800; margin-top: 2.4vh; line-height: 1.15; overflow-wrap: anywhere; }
+    #sorteoNombreTv:empty { display: none; }
+
     /* Sonido */
     #sonidoPanel { position: fixed; inset: 0; z-index: 25; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, .72); }
     #sonidoPanel.visible { display: flex; }
@@ -206,6 +251,21 @@
         <div class="conBalota" id="anConBalota" hidden><span class="bolaGano" id="anBolaGano"></span><span id="anTextoGano"></span></div>
         <div class="detalle" id="anDetalle"></div>
         <div class="premioGanador" id="anPremio"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sorteoCapa">
+    <canvas id="confetiSorteo"></canvas>
+    <div class="caja">
+      <div class="titulo">🎁 SORTEO</div>
+      <div id="sorteoPremioTv"></div>
+      <div id="sorteoEntre"></div>
+      <div class="tambor" id="sorteoTambor"><div class="tira" id="sorteoTira"></div><div class="ventana"></div><div class="sombra"></div></div>
+      <div id="sorteoResultado" hidden>
+        <div class="gano">¡GANADOR!</div>
+        <div id="sorteoCodigoTv"></div>
+        <div id="sorteoNombreTv"></div>
       </div>
     </div>
   </div>
@@ -313,7 +373,9 @@
         }
         if (r.estado === 'juego') {
           fallos = 0;
-          if (r.v !== ultimaV) { ultimaV = r.v; pintar(r); }
+          // Se repinta si cambia el bingo (v) o el sorteo (vs).
+          var version = r.v + '|' + (r.sorteo ? r.sorteo.vs : '');
+          if (version !== ultimaV) { ultimaV = version; pintar(r); }
           conexion(true);
         } else {
           conexion(false, r.mensaje || 'Respuesta inesperada');
@@ -422,13 +484,86 @@
         var id = idAnuncio(an);
         if (!anunciosVistos[id]) {
           anunciosVistos[id] = true;
-          if (!primerEstado) celebrar();
+          if (!primerEstado) { celebrar(); alFrente('anuncio'); }
         }
         confeti.iniciar();
       } else {
         confeti.detener();
       }
+      pintarSorteo(r.sorteo);
       primerEstado = false;
+    }
+
+    // ---------- Sorteo adicional ----------
+    // Capa propia: no toca el anuncio del bingo. Si conviven, queda adelante el más reciente.
+    var sorteoMostrado = null, sorteosVistos = {}, sorteoAnim = null, sorteoTimers = [];
+    var DURACION_TAMBOR = 7000;
+
+    function alFrente(cual) {
+      $('anuncio').style.zIndex = cual === 'anuncio' ? 22 : 20;
+      $('sorteoCapa').style.zIndex = cual === 'sorteo' ? 22 : 21;
+    }
+
+    function pararSorteo() {
+      cancelAnimationFrame(sorteoAnim); sorteoAnim = null;
+      sorteoTimers.forEach(clearTimeout); sorteoTimers = [];
+    }
+
+    function pintarSorteo(so) {
+      var a = so && so.anuncio;
+      if (!a) {
+        if (sorteoMostrado !== null) { pararSorteo(); confetiSorteo.detener(); }
+        sorteoMostrado = null;
+        $('sorteoCapa').classList.remove('visible');
+        return;
+      }
+      var uid = a.uid || String(a.id);
+      if (sorteoMostrado === uid) return;   // ya se está mostrando (o girando)
+      pararSorteo();
+      confetiSorteo.detener();
+      sorteoMostrado = uid;
+      $('sorteoPremioTv').textContent = a.premio;
+      $('sorteoEntre').textContent = 'Entre ' + a.participantes + (a.participantes === 1 ? ' participante' : ' participantes') + ' con ingreso registrado';
+      $('sorteoCapa').classList.add('visible');
+      alFrente('sorteo');
+      // Al abrir la página (o si ya se vio) se muestra el resultado directo, sin girar ni sonar.
+      if (primerEstado || sorteosVistos[uid]) { sorteosVistos[uid] = true; revelarSorteo(a); return; }
+      sorteosVistos[uid] = true;
+      girarTambor(a);
+    }
+
+    // Tambor de códigos que se va frenando hasta dejar el del ganador en la ventana dorada.
+    function girarTambor(a) {
+      $('sorteoResultado').hidden = true;
+      $('sorteoTambor').hidden = false;
+      var pool = (a.ruleta && a.ruleta.length) ? a.ruleta : [a.codigo];
+      var N = 46, gana = N - 2, items = [];
+      for (var i = 0; i < N; i++) items.push(i === gana ? a.codigo : pool[Math.floor(Math.random() * pool.length)]);
+      var tira = $('sorteoTira');
+      tira.textContent = '';
+      items.forEach(function (c, i) { var d = document.createElement('div'); d.textContent = c; tira.appendChild(d); });
+      var alto = tira.firstChild.getBoundingClientRect().height;
+      var fin = (gana - 1) * alto;            // el ganador queda en la fila del medio (ventana)
+      var inicio = performance.now();
+      tira.style.transform = 'translateY(0)';
+      function paso(ahora) {
+        var t = Math.min(1, (ahora - inicio) / DURACION_TAMBOR);
+        var e = 1 - Math.pow(1 - t, 4);       // rápido al principio, se va frenando
+        tira.style.transform = 'translateY(' + (-fin * e).toFixed(1) + 'px)';
+        if (t < 1) sorteoAnim = requestAnimationFrame(paso);
+        else { sorteoAnim = null; tira.children[gana].className = 'gana'; sorteoTimers.push(setTimeout(function () { revelarSorteo(a); }, 700)); }
+      }
+      sorteoAnim = requestAnimationFrame(paso);
+      // El mismo redoble del bingo: el platillo coincide con el final del tambor. Una sola vez por sorteo.
+      if (sonidoActivo) sorteoTimers.push(setTimeout(function () { try { redoble(); } catch (e) {} }, Math.max(0, DURACION_TAMBOR - 2350)));
+    }
+
+    function revelarSorteo(a) {
+      $('sorteoTambor').hidden = true;
+      $('sorteoCodigoTv').textContent = a.codigo;
+      $('sorteoNombreTv').textContent = a.nombre ? bonito(a.nombre) : '';
+      $('sorteoResultado').hidden = false;
+      confetiSorteo.iniciar();
     }
 
     function tabla4(n) { return String(n).padStart(4, '0'); }
@@ -467,8 +602,8 @@
     }
 
     // ---------- Confeti (canvas, sin librerías) ----------
-    var confeti = (function () {
-      var lienzo = $('confeti'), ctx = lienzo.getContext('2d');
+    function crearConfeti(lienzo) {
+      var ctx = lienzo.getContext('2d');
       var piezas = [], activo = false, cuadro = null, ancho = 0, alto = 0;
       var TONOS = ['#fbbf24', '#f43f5e', '#22c55e', '#3b82f6', '#a855f7', '#f97316', '#fde68a', '#ffffff'];
       function medir() {
@@ -517,7 +652,9 @@
         },
         activo: function () { return activo; }
       };
-    })();
+    }
+    var confeti = crearConfeti($('confeti'));
+    var confetiSorteo = crearConfeti($('confetiSorteo'));
 
     // ---------- Sonido ----------
     // Los navegadores no dejan sonar una página hasta que alguien la toca: se pide un toque al entrar.

@@ -138,6 +138,22 @@
     .estadoTabla { font-weight: 800; }
     .estadoTabla.si { color: #86efac; }
     .estadoTabla.no { color: #fca5a5; }
+
+    /* Sorteos adicionales */
+    #panelSorteo { border-color: rgba(168, 85, 247, .6); }
+    #sorteoParticipan { font-size: 24px; font-weight: 900; color: #fde68a; margin: 4px 0 2px; }
+    #sorteoDetalle { margin: 0 0 6px; }
+    #sorteoFuente { margin: 0 0 4px; }
+    #sorteoEnPantalla { display: none; margin-top: 10px; padding: 10px; border-radius: 12px; background: rgba(124, 58, 237, .35); border: 2px solid #c4b5fd; }
+    #sorteoEnPantalla.visible { display: block; }
+    #sorteoEnPantalla .grande { font-size: 20px; font-weight: 900; overflow-wrap: anywhere; }
+    #sorteoOk { color: #86efac; min-height: 1.2em; margin: 6px 0 0; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+    #sorteoHistorial { margin: 6px 0 0; padding-left: 20px; }
+    #sorteoHistorial li { margin: 4px 0; overflow-wrap: anywhere; }
+    #sorteoHistorial li.descartado { opacity: .6; text-decoration: line-through; }
+    #sorteoHistorial li .etq { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 800; text-decoration: none; }
+    #sorteoHistorial li .etq.d { background: #7f1d1d; color: #fecaca; }
+    #sorteoBotones { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -246,9 +262,32 @@
             <ul id="historial" class="tenue"><li>Ninguno todavía.</li></ul>
           </div>
 
+          <div class="panel" id="panelSorteo">
+            <h2>🎁 Sorteos adicionales</h2>
+            <p class="tenue" id="sorteoFuente">Cargando participantes…</p>
+            <div id="sorteoParticipan">Participan – de –</div>
+            <p class="tenue" id="sorteoDetalle">Solo participan los códigos de la pestaña que ya registraron su ingreso.</p>
+            <label for="sorteoPremio">Premio</label>
+            <input type="text" id="sorteoPremio" maxlength="60" autocomplete="off" placeholder="Ej.: Licuadora, mercado, bono…">
+            <div id="sorteoBotones">
+              <button class="exito ancho" id="btnSortear" onclick="sortear()">🎲 Sortear</button>
+              <button class="peligro ancho" id="btnDescartar" onclick="descartarSorteo()" style="display:none">Descartar el último y volver a sortear</button>
+              <button class="sec ancho" id="btnActualizarSorteo" onclick="cargarSorteo(true)">↻ Actualizar participantes</button>
+            </div>
+            <p class="error" id="sorteoError"></p>
+            <p id="sorteoOk"></p>
+            <div id="sorteoEnPantalla">
+              <div class="grande" id="sorteoEnPantallaTexto"></div>
+              <div id="sorteoEnPantallaDetalle"></div>
+              <button class="sec" style="margin-top:10px" id="btnOcultarSorteo" onclick="ocultarSorteo()">Quitar el sorteo de la pantalla</button>
+            </div>
+            <h2 style="margin-top:14px">Sorteos hechos</h2>
+            <ul id="sorteoHistorial" class="tenue"><li>Ninguno todavía.</li></ul>
+          </div>
+
           <div class="panel" id="panelReinicio">
             <h2>Antes del evento</h2>
-            <p class="tenue" style="margin-top:0">Deja el juego como nuevo: ronda 1, sin balotas, quita el anuncio de la TV, borra los ganadores confirmados y vacía la hoja "Ganadores" (conserva los encabezados). No toca las tablas, el ingreso, los asistentes ni las claves. La figura y el premio se conservan.</p>
+            <p class="tenue" style="margin-top:0">Deja el juego como nuevo: ronda 1, sin balotas, quita el anuncio de la TV, borra los ganadores confirmados y vacía la hoja "Ganadores" (conserva los encabezados). También borra los sorteos adicionales: el historial, el sorteo en pantalla y la hoja "Sorteos" (con sus encabezados). No toca las tablas, el ingreso, los asistentes ni las claves. La figura y el premio se conservan.</p>
             <button class="peligro ancho" id="btnReiniciar" onclick="reiniciarJuego()">Reiniciar todo el juego</button>
             <p class="error" id="reinicioError"></p>
           </div>
@@ -277,6 +316,7 @@
     var intervalo = null;
     var mascaraEditor = '0000000000001000000000000';
     var ganTimer = null, calculando = false, recalcular = false;
+    var sorteo = null, sorteoIntervalo = null, sorteoVs = null, cargandoSorteo = false;
 
     function $(id) { return document.getElementById(id); }
     function tabla4(n) { return String(n).padStart(4, "0"); }
@@ -341,6 +381,8 @@
     function salir(mensaje) {
       if (intervalo) clearInterval(intervalo);
       intervalo = null;
+      if (sorteoIntervalo) clearInterval(sorteoIntervalo);
+      sorteoIntervalo = null;
       clave = '';
       try { sessionStorage.removeItem('claveJuego'); } catch (e) {}
       $('app').style.display = 'none';
@@ -353,7 +395,10 @@
       construirEditor();
       refrescar();
       cargarRevisar();
+      cargarSorteo(false);
       if (!intervalo) intervalo = setInterval(refrescar, 5000);
+      // Los participantes cambian a medida que la gente ingresa: se recuentan cada 20 s.
+      if (!sorteoIntervalo) sorteoIntervalo = setInterval(function () { cargarSorteo(false); }, 20000);
     }
 
     async function refrescar() {
@@ -381,6 +426,12 @@
       pintarTablero();
       pintarAnuncio();
       pintarHistorial();
+      if (r.sorteo) {
+        pintarSorteoPantalla(r.sorteo.anuncio);
+        // Otro equipo hizo un sorteo: se actualiza el panel.
+        if (sorteoVs !== null && r.sorteo.vs !== sorteoVs && !cargandoSorteo) cargarSorteo(false);
+        sorteoVs = r.sorteo.vs;
+      }
       if (cambioFigura) pintarFigura();
       if (cambioBalotas || cambioFigura) programarGanadores();
     }
@@ -484,7 +535,7 @@
 
     function reiniciarJuego() {
       $('reinicioError').textContent = '';
-      var txt = prompt('Esto deja el juego como nuevo:\n· Ronda 1 y sin balotas\n· Quita el anuncio de la TV\n· Borra los ganadores confirmados y vacía la hoja "Ganadores"\n\nNo toca las tablas, el ingreso, los asistentes ni las claves.\n\nPara confirmar, escribe REINICIAR:');
+      var txt = prompt('Esto deja el juego como nuevo:\n· Ronda 1 y sin balotas\n· Quita el anuncio de la TV\n· Borra los ganadores confirmados y vacía la hoja "Ganadores"\n· Borra los sorteos adicionales y vacía la hoja "Sorteos"\n\nNo toca las tablas, el ingreso, los asistentes ni las claves.\n\nPara confirmar, escribe REINICIAR:');
       if (txt === null) return;
       if (txt.trim() !== 'REINICIAR') { $('reinicioError').textContent = 'No se reinició: había que escribir REINICIAR (en mayúsculas).'; return; }
       $('btnReiniciar').disabled = true;
@@ -494,13 +545,117 @@
           $('ganadores').textContent = '';
           $('avisosGan').textContent = '';
           calcularGanadores(false);
-          alert('Juego reiniciado. Ronda 1, sin balotas.' + (r.filasBorradas ? '\nSe borraron ' + r.filasBorradas + ' filas de la hoja "Ganadores".' : '') + (r.avisoHoja ? '\n\nAtención: ' + r.avisoHoja : ''));
+          cargarSorteo(false);
+          alert('Juego reiniciado. Ronda 1, sin balotas.' + (r.filasBorradas ? '\nSe borraron ' + r.filasBorradas + ' filas de la hoja "Ganadores".' : '') + (r.filasSorteos ? '\nSe borraron ' + r.filasSorteos + ' filas de la hoja "Sorteos".' : '') + (r.avisoHoja ? '\n\nAtención: ' + r.avisoHoja : ''));
         }
       }).finally(function () {
         $('btnReiniciar').disabled = false;
         $('btnReiniciar').textContent = 'Reiniciar todo el juego';
       });
     }
+
+    // ---------- Sorteos adicionales ----------
+    async function cargarSorteo(manual) {
+      if (cargandoSorteo) return;
+      cargandoSorteo = true;
+      if (manual) $('btnActualizarSorteo').disabled = true;
+      try {
+        var r = await llamarApi({ accion: 'infoSorteo' });
+        if (r.estado === 'sorteo') { $('sorteoError').textContent = ''; pintarSorteo(r); }
+        else { $('sorteoFuente').textContent = r.mensaje || ('Respuesta: ' + r.estado); $('sorteoError').textContent = r.mensaje || ''; }
+      } catch (e) {
+        if (textoError(e) !== 'clave') $('sorteoError').textContent = 'No se pudo leer el sorteo: ' + textoError(e);
+      } finally {
+        cargandoSorteo = false;
+        $('btnActualizarSorteo').disabled = false;
+      }
+    }
+
+    function pintarSorteo(r) {
+      sorteo = r;
+      sorteoVs = r.vs;
+      $('sorteoFuente').textContent = 'Pestaña "' + r.hoja + '": códigos en la columna ' + r.colCodigo + (r.colNombre ? ', nombres en la ' + r.colNombre : '') + (r.encabezado ? ' (con encabezados)' : '') + ' · ' + r.total + ' códigos.';
+      $('sorteoParticipan').textContent = 'Participan ' + r.participantes + ' de ' + r.total;
+      var partes = ['Pueden salir ahora: ' + r.disponibles];
+      if (r.yaGanaron) partes.push('ya ganaron ' + r.yaGanaron);
+      partes.push('sin ingreso ' + r.sinIngreso);
+      if (r.noEnBase) partes.push('no están en "Base de datos" ' + r.noEnBase);
+      $('sorteoDetalle').textContent = partes.join(' · ') + '. Solo participan los códigos con ingreso registrado.';
+      var h = $('sorteoHistorial');
+      h.textContent = '';
+      if (!r.historial.length) h.appendChild(el('li', '', 'Ninguno todavía.'));
+      r.historial.forEach(function (x) {
+        var li = el('li', x.estado === 'descartado' ? 'descartado' : '', 'N° ' + x.n + ' · ' + x.premio + ' · ' + x.codigo + (x.nombre ? ' · ' + bonito(x.nombre) : '') + ' · ' + x.hora);
+        if (x.estado === 'descartado') li.appendChild(el('span', 'etq d', 'Descartado'));
+        h.appendChild(li);
+      });
+      var ult = r.historial[0];
+      var b = $('btnDescartar');
+      b.style.display = ult && ult.estado === 'ganador' ? '' : 'none';
+      if (ult && ult.estado === 'ganador') b.textContent = 'Descartar ' + ult.codigo + ' y volver a sortear';
+      pintarSorteoPantalla(r.anuncio);
+    }
+
+    function pintarSorteoPantalla(a) {
+      $('sorteoEnPantalla').classList.toggle('visible', !!a);
+      if (!a) return;
+      $('sorteoEnPantallaTexto').textContent = 'En pantalla: sorteo N° ' + a.id + ' · ' + a.codigo;
+      $('sorteoEnPantallaDetalle').textContent = (a.nombre ? bonito(a.nombre) + ' · ' : '') + a.premio + ' · entre ' + a.participantes + ' participantes';
+    }
+
+    function respuestaSorteo(r) {
+      if (r.estado === 'sorteo' || r.estado === 'sin_participantes' || r.estado === 'sin_resultado') pintarSorteo(r);
+      if (r.estado === 'sorteo') {
+        $('sorteoError').textContent = r.avisoHoja ? 'Atención: ' + r.avisoHoja : '';
+        if (r.ganador) $('sorteoOk').textContent = (r.descartado ? 'Se descartó ' + r.descartado.codigo + '. ' : '') + '🎉 Ganó ' + r.ganador.codigo + (r.ganador.nombre ? ' · ' + bonito(r.ganador.nombre) : '') + ' (' + r.ganador.premio + ')';
+        else if (r.descartado) $('sorteoOk').textContent = 'Se descartó ' + r.descartado.codigo + '.';
+      } else {
+        $('sorteoOk').textContent = '';
+        $('sorteoError').textContent = r.mensaje || ('Respuesta: ' + r.estado);
+        if (r.estado === 'sin_participantes') alert(r.mensaje);
+      }
+      refrescar();
+    }
+
+    function sortear() {
+      $('sorteoError').textContent = ''; $('sorteoOk').textContent = '';
+      var premio = $('sorteoPremio').value.replace(/\s+/g, ' ').trim();
+      if (!premio) { $('sorteoError').textContent = 'Escribe el nombre del premio antes de sortear.'; $('sorteoPremio').focus(); return; }
+      var b = $('btnSortear');
+      b.disabled = true; b.textContent = 'Sorteando…';
+      enCola(function () {
+        return llamarApi({ accion: 'sortear', premio: premio }).then(respuestaSorteo).catch(function (e) {
+          if (textoError(e) !== 'clave') $('sorteoError').textContent = 'No se sorteó: ' + textoError(e);
+        });
+      }).finally(function () { b.disabled = false; b.textContent = '🎲 Sortear'; });
+    }
+
+    function descartarSorteo() {
+      var ult = sorteo && sorteo.historial[0];
+      if (!ult || ult.estado !== 'ganador') return;
+      if (!confirm('¿Descartar el resultado ' + ult.codigo + (ult.nombre ? ' (' + bonito(ult.nombre) + ')' : '') + ' del premio "' + ult.premio + '"?\n\nNo contará como ganador, quedará como "Descartado" en la hoja "Sorteos" y se volverá a sortear el mismo premio sin ese código.')) return;
+      $('sorteoError').textContent = ''; $('sorteoOk').textContent = '';
+      var b = $('btnDescartar');
+      b.disabled = true;
+      enCola(function () {
+        return llamarApi({ accion: 'descartarSorteo', volverASortear: true }).then(respuestaSorteo).catch(function (e) {
+          if (textoError(e) !== 'clave') $('sorteoError').textContent = 'No se descartó: ' + textoError(e);
+        });
+      }).finally(function () { b.disabled = false; });
+    }
+
+    function ocultarSorteo() {
+      var b = $('btnOcultarSorteo');
+      b.disabled = true;
+      enCola(function () {
+        return llamarApi({ accion: 'ocultarSorteo' }).then(function (r) {
+          if (r.estado === 'sorteo_oculto') { pintarSorteoPantalla(null); if (sorteo) sorteo.anuncio = null; }
+          else $('sorteoError').textContent = r.mensaje || ('Respuesta: ' + r.estado);
+          refrescar();
+        }).catch(function (e) { if (textoError(e) !== 'clave') $('sorteoError').textContent = 'No se quitó: ' + textoError(e); });
+      }).finally(function () { b.disabled = false; });
+    }
+    $('sorteoPremio').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') sortear(); });
 
     // Ejecuta una acción en la fila y aplica el estado que devuelve.
     function accion(datos, campoError) {

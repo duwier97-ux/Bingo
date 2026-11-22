@@ -279,7 +279,8 @@ const ACCIONES_JUEGO = {
   marcarBalota: 'juego', quitarBalota: 'juego', deshacerBalota: 'juego',
   fijarFigura: 'juego', fijarPremio: 'juego',
   ganadores: 'juego', confirmarGanador: 'juego', ocultarAnuncio: 'juego', nuevaRonda: 'juego', reiniciarJuego: 'juego',
-  listarTablas: 'juego', activarTabla: 'juego', cargarTablas: 'juego'
+  listarTablas: 'juego', activarTabla: 'juego', cargarTablas: 'juego',
+  infoSorteo: 'juego', sortear: 'juego', descartarSorteo: 'juego', ocultarSorteo: 'juego'
 };
 
 function atenderJuego_(accion, datos) {
@@ -305,6 +306,10 @@ function atenderJuego_(accion, datos) {
     case 'listarTablas': return listarTablas_();
     case 'activarTabla': return activarTabla_(datos.tabla, datos.activa);
     case 'cargarTablas': return cargarTablas_(datos.tablas);
+    case 'infoSorteo': return infoSorteo_();
+    case 'sortear': return sortear_(datos.premio);
+    case 'descartarSorteo': return descartarSorteo_(datos.volverASortear !== false);
+    case 'ocultarSorteo': return ocultarSorteo_();
   }
   return { estado: 'error', mensaje: 'Acción no válida' };
 }
@@ -391,6 +396,9 @@ function estadoPublico_(e, rol) {
     figura: e.figura, premio: e.premio, anuncio: e.anuncio, actualizado: e.actualizado
   };
   if (rol === 'juego') r.ganadores = e.ganadores;
+  // Sorteo adicional: estado aparte (no cambia la versión v del bingo). La TV lo pinta en su propia capa.
+  const so = leerSorteo_();
+  r.sorteo = { vs: so.vs, anuncio: so.anuncio };
   return r;
 }
 
@@ -605,11 +613,24 @@ function anotarGanadorEnHoja_(g) {
 
 // Deja el juego como nuevo antes del evento: ronda 1, sin balotas, sin anuncio, sin historial de ganadores,
 // y la hoja "Ganadores" vacía (se conserva la fila 1 de encabezados). La figura y el premio se conservan.
+// También deja los sorteos adicionales como nuevos: sin historial ni anuncio, y la hoja "Sorteos" vacía (con encabezados).
 // NO toca las hojas "Tablas" ni "Base de datos" ni las claves.
 function reiniciarJuego_(confirmacion) {
   if (String(confirmacion || '').trim() !== 'REINICIAR') return { estado: 'error', mensaje: 'Para reiniciar escribe la palabra REINICIAR.' };
-  let filasBorradas = 0, avisoHoja = '';
+  let filasBorradas = 0, avisoHoja = '', filasSorteos = 0;
   const r = mutarEstado_(function (e) {
+    try {
+      const hs = SpreadsheetApp.openById(ID_HOJA).getSheetByName(HOJA_SORTEOS);
+      if (hs && hs.getLastRow() >= 2) {
+        filasSorteos = hs.getLastRow() - 1;
+        hs.getRange(2, 1, filasSorteos, Math.max(1, hs.getLastColumn())).clearContent();
+        SpreadsheetApp.flush();
+      }
+    } catch (err) {
+      avisoHoja = 'No se pudo vaciar la hoja "' + HOJA_SORTEOS + '": ' + String((err && err.message) || err);
+    }
+    const so = leerSorteoDurable_();
+    guardarSorteo_({ vs: so.vs, n: 0, ganadores: [], historial: [], anuncio: null, descartados: null });
     try {
       const hoja = SpreadsheetApp.openById(ID_HOJA).getSheetByName(HOJA_GANADORES);
       if (hoja && hoja.getLastRow() >= 2) {
@@ -618,12 +639,13 @@ function reiniciarJuego_(confirmacion) {
         SpreadsheetApp.flush();
       }
     } catch (err) {
-      avisoHoja = 'No se pudo vaciar la hoja "' + HOJA_GANADORES + '": ' + String((err && err.message) || err);
+      avisoHoja = (avisoHoja ? avisoHoja + ' ' : '') + 'No se pudo vaciar la hoja "' + HOJA_GANADORES + '": ' + String((err && err.message) || err);
     }
     e.ronda = 1; e.balotas = []; e.anuncio = null; e.ganadores = [];
   });
   r.reiniciado = true;
   r.filasBorradas = filasBorradas;
+  r.filasSorteos = filasSorteos;
   if (avisoHoja) r.avisoHoja = avisoHoja;
   return r;
 }
@@ -702,4 +724,322 @@ function cargarTablas_(filas) {
   }
   const activas = salida.filter(function (r) { return r[r.length - 2] === true; }).length;
   return { estado: 'tablas_cargadas', total: salida.length, activas: activas, inactivas: salida.length - activas };
+}
+
+// =====================================================================
+// ===== SORTEOS ADICIONALES (aparte del bingo) =====
+// Participan los códigos de la pestaña "Códigos" (se busca sin importar mayúsculas ni tildes) que además
+// tienen ingreso registrado en "Base de datos" (H = TRUE). Un código de la pestaña que no está en
+// "Base de datos" no participa. No se repiten ganadores. Cada resultado se anota en la hoja "Sorteos".
+// Estado propio en Propiedades (ESTADO_SORTEO) + caché: no toca el estado ni la versión del bingo.
+// =====================================================================
+
+const HOJA_SORTEOS = 'Sorteos';
+const NOMBRES_PESTANA_CODIGOS = ['codigos', 'codigos adicionales'];
+const PROP_SORTEO = 'ESTADO_SORTEO';
+const CACHE_SORTEO = 'estado_sorteo';
+const MAX_HISTORIAL_SORTEO = 25;
+const TAM_RULETA = 30;
+const ENCABEZADOS_SORTEOS = ['Fecha', 'Hora', 'N° sorteo', 'Premio', 'Código', 'Nombre', 'Estado'];
+// Forma de un código: PMB-121-T, ABC-12, X1-2-3 … (letras/números separados por guiones)
+const FORMA_CODIGO = /^[A-Z0-9]{1,8}(-[A-Z0-9]{1,8}){1,4}$/;
+
+function sorteoInicial_() {
+  return { vs: 0, n: 0, ganadores: [], historial: [], anuncio: null, descartados: null };
+}
+
+function normalizarSorteo_(s) {
+  const base = sorteoInicial_();
+  s = s || {};
+  Object.keys(base).forEach(function (k) { if (s[k] === undefined) s[k] = base[k]; });
+  return s;
+}
+
+function leerSorteo_() {
+  const c = CacheService.getScriptCache().get(CACHE_SORTEO);
+  if (c) return normalizarSorteo_(JSON.parse(c));
+  const s = leerSorteoDurable_();
+  CacheService.getScriptCache().put(CACHE_SORTEO, JSON.stringify(s), 21600);
+  return s;
+}
+
+function leerSorteoDurable_() {
+  const p = PropertiesService.getScriptProperties().getProperty(PROP_SORTEO);
+  return normalizarSorteo_(p ? JSON.parse(p) : null);
+}
+
+// Guarda el estado del sorteo (llamar con el lock tomado). Sube vs para que la TV y el control se enteren.
+function guardarSorteo_(s) {
+  s.vs = (Number(s.vs) || 0) + 1;
+  if (s.historial.length > MAX_HISTORIAL_SORTEO) s.historial = s.historial.slice(-MAX_HISTORIAL_SORTEO);
+  let texto = JSON.stringify(s);
+  while (texto.length > 8500 && s.historial.length > 5) { s.historial.shift(); texto = JSON.stringify(s); }
+  PropertiesService.getScriptProperties().setProperty(PROP_SORTEO, texto);
+  CacheService.getScriptCache().put(CACHE_SORTEO, texto, 21600);
+}
+
+// Busca la pestaña de códigos sin importar mayúsculas, tildes ni espacios: "Códigos", "codigos", "CODIGOS"…
+// No toma copias como "Códigos (2)".
+function buscarPestanaCodigos_(ss) {
+  const hojas = ss.getSheets ? ss.getSheets() : [];
+  for (let k = 0; k < NOMBRES_PESTANA_CODIGOS.length; k++) {
+    for (let i = 0; i < hojas.length; i++) {
+      if (normalizarTexto_(hojas[i].getName()).replace(/\s+/g, ' ') === NOMBRES_PESTANA_CODIGOS[k]) return hojas[i];
+    }
+  }
+  return null;
+}
+
+function pareceCodigo_(v) {
+  return typeof v === 'string' && FORMA_CODIGO.test(limpiarCodigo_(v));
+}
+
+// Lee la pestaña de códigos y se adapta a su forma:
+//  - Con encabezados (una celda de la fila 1 dice "Código…"): esa columna; nombre = la que diga "Nombre…".
+//  - Sin encabezados: la columna con más valores con forma de código; nombre = la columna siguiente si tiene texto.
+// Ignora casillas (TRUE/FALSE), errores (#N/A), vacías y repetidos.
+function leerPestanaCodigos_(ss) {
+  const hoja = buscarPestanaCodigos_(ss);
+  if (!hoja) return { error: 'No se encontró la pestaña de códigos ("Códigos") en el Sheet.' };
+  const ultF = hoja.getLastRow(), ultC = hoja.getLastColumn();
+  const valores = (ultF >= 1 && ultC >= 1) ? hoja.getRange(1, 1, ultF, ultC).getValues() : [];
+  let cCod = -1, cNom = -1, desde = 0;
+  const enc = (valores[0] || []).map(function (v) { return typeof v === 'string' ? normalizarTexto_(v) : ''; });
+  const conEncabezado = enc.some(function (t) { return /^codigo/.test(t); }) && !(valores[0] || []).some(pareceCodigo_);
+  if (conEncabezado) {
+    desde = 1;
+    cCod = enc.findIndex(function (t) { return /^codigo/.test(t); });
+    cNom = enc.findIndex(function (t) { return /^nombre/.test(t); });
+  } else {
+    let mejor = 0;
+    for (let c = 0; c < ultC; c++) {
+      let n = 0;
+      for (let f = 0; f < valores.length; f++) if (pareceCodigo_(valores[f][c])) n++;
+      if (n > mejor) { mejor = n; cCod = c; }
+    }
+    if (cCod >= 0 && cCod + 1 < ultC) {
+      let texto = 0, conCodigo = 0;
+      for (let f = 0; f < valores.length; f++) {
+        if (!pareceCodigo_(valores[f][cCod])) continue;
+        conCodigo++;
+        const v = valores[f][cCod + 1];
+        if (typeof v === 'string' && v.trim() && !pareceCodigo_(v)) texto++;
+      }
+      if (conCodigo && texto >= conCodigo / 2) cNom = cCod + 1;
+    }
+  }
+  const lista = [], vistos = {};
+  if (cCod >= 0) {
+    for (let f = desde; f < valores.length; f++) {
+      const v = valores[f][cCod];
+      if (!pareceCodigo_(v)) continue;
+      const cod = limpiarCodigo_(v);
+      if (vistos[cod]) continue;
+      vistos[cod] = true;
+      lista.push({ codigo: cod, nombre: cNom >= 0 ? String(valores[f][cNom] || '').replace(/\s+/g, ' ').trim() : '' });
+    }
+  }
+  const letra = function (c) { return c >= 0 ? String.fromCharCode(65 + c) : ''; };
+  return { hoja: hoja.getName(), encabezado: conEncabezado, colCodigo: letra(cCod), colNombre: letra(cNom), codigos: lista };
+}
+
+// Participantes = códigos de la pestaña con fila en "Base de datos" y H = TRUE.
+function participantesSorteo_() {
+  const ss = SpreadsheetApp.openById(ID_HOJA);
+  const pc = leerPestanaCodigos_(ss);
+  if (pc.error) return pc;
+  const base = leerHoja_(abrirHoja_());
+  const enBase = {};
+  base.filas.forEach(function (f) {
+    const cod = limpiarCodigo_(f[COL_CODIGO - 1]);
+    if (!cod) return;
+    const x = enBase[cod] || (enBase[cod] = { asistio: false, nombre: '' });
+    if (f[COL_ASISTIO - 1] === true) x.asistio = true;
+    if (!x.nombre) x.nombre = String(f[COL_NOMBRE - 1] || '').replace(/\s+/g, ' ').trim();
+  });
+  const participantes = [];
+  let noEnBase = 0, sinIngreso = 0;
+  pc.codigos.forEach(function (c) {
+    const b = enBase[c.codigo];
+    if (!b) { noEnBase++; return; }
+    if (!b.asistio) { sinIngreso++; return; }
+    participantes.push({ codigo: c.codigo, nombre: c.nombre || b.nombre });
+  });
+  pc.participantes = participantes;
+  pc.total = pc.codigos.length;
+  pc.noEnBase = noEnBase;
+  pc.sinIngreso = sinIngreso;
+  return pc;
+}
+
+function normPremio_(t) { return normalizarTexto_(t).replace(/\s+/g, ' '); }
+
+// Quiénes pueden salir ahora: participantes que no han ganado; si se está repitiendo el sorteo de un premio
+// después de descartar, tampoco los descartados para ese mismo premio.
+function elegibles_(pc, s, premio) {
+  const ganaron = {};
+  s.ganadores.forEach(function (c) { ganaron[c] = true; });
+  const fuera = {};
+  if (s.descartados && s.descartados.premio === normPremio_(premio)) s.descartados.codigos.forEach(function (c) { fuera[c] = true; });
+  return pc.participantes.filter(function (p) { return !ganaron[p.codigo] && !fuera[p.codigo]; });
+}
+
+function resumenSorteo_(pc, s, premio) {
+  const r = {
+    estado: 'sorteo', vs: s.vs, hoja: pc.hoja, colCodigo: pc.colCodigo, colNombre: pc.colNombre, encabezado: pc.encabezado,
+    total: pc.total, participantes: pc.participantes.length, noEnBase: pc.noEnBase, sinIngreso: pc.sinIngreso,
+    yaGanaron: s.ganadores.length, historial: s.historial.slice().reverse(), anuncio: s.anuncio
+  };
+  r.disponibles = elegibles_(pc, s, premio === undefined ? '' : premio).length;
+  if (s.descartados) r.repitiendo = { premio: s.descartados.premio, descartados: s.descartados.codigos.length };
+  return r;
+}
+
+function infoSorteo_() {
+  const pc = participantesSorteo_();
+  if (pc.error) return { estado: 'error', mensaje: pc.error };
+  return resumenSorteo_(pc, leerSorteo_());
+}
+
+function limpiarPremioSorteo_(premio) {
+  return String(premio === undefined || premio === null ? '' : premio).replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
+// Elige al azar (con el lock tomado). Devuelve el registro o null si no hay a quién sortear.
+function sortearInterno_(pc, s, premio, avisos) {
+  const lista = elegibles_(pc, s, premio);
+  if (!lista.length) return null;
+  const g = lista[Math.floor(Math.random() * lista.length)];
+  if (s.descartados && s.descartados.premio !== normPremio_(premio)) s.descartados = null;
+  s.n = (Number(s.n) || 0) + 1;
+  const ahora = new Date();
+  const reg = {
+    n: s.n, premio: premio, codigo: g.codigo, nombre: g.nombre, estado: 'ganador',
+    fecha: Utilities.formatDate(ahora, ZONA, 'dd/MM/yyyy'), hora: Utilities.formatDate(ahora, ZONA, 'HH:mm:ss')
+  };
+  s.ganadores.push(g.codigo);
+  s.historial.push(reg);
+  // Códigos para la animación de la TV: una muestra de participantes (el ganador va al final).
+  const ruleta = [];
+  const otros = pc.participantes.filter(function (p) { return p.codigo !== g.codigo; }).map(function (p) { return p.codigo; });
+  for (let i = otros.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = otros[i]; otros[i] = otros[j]; otros[j] = t; }
+  for (let i = 0; i < Math.min(TAM_RULETA, otros.length); i++) ruleta.push(otros[i]);
+  // uid: único aunque la numeración vuelva a 1 tras reiniciar (la TV lo usa para no repetir la animación).
+  s.anuncio = {
+    id: s.n, uid: s.n + '-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e9).toString(36), premio: premio, codigo: g.codigo, nombre: g.nombre, hora: reg.hora,
+    participantes: lista.length, ruleta: ruleta
+  };
+  try {
+    anotarSorteoEnHoja_(reg);
+  } catch (err) {
+    avisos.push('No se pudo anotar en la hoja "' + HOJA_SORTEOS + '": ' + String((err && err.message) || err));
+  }
+  return reg;
+}
+
+function anotarSorteoEnHoja_(reg) {
+  const ss = SpreadsheetApp.openById(ID_HOJA);
+  let hoja = ss.getSheetByName(HOJA_SORTEOS);
+  if (!hoja) {
+    hoja = ss.insertSheet(HOJA_SORTEOS);
+    hoja.appendRow(ENCABEZADOS_SORTEOS);
+    hoja.setFrozenRows(1);
+  }
+  hoja.appendRow([reg.fecha, reg.hora, reg.n, reg.premio, reg.codigo, reg.nombre, 'Ganador']);
+}
+
+// Marca como "Descartado" la fila del sorteo n en la hoja (busca por N° sorteo y código).
+function marcarDescartadoEnHoja_(reg) {
+  const hoja = SpreadsheetApp.openById(ID_HOJA).getSheetByName(HOJA_SORTEOS);
+  if (!hoja || hoja.getLastRow() < 2) return false;
+  const filas = hoja.getRange(2, 1, hoja.getLastRow() - 1, ENCABEZADOS_SORTEOS.length).getValues();
+  for (let i = filas.length - 1; i >= 0; i--) {
+    if (Number(filas[i][2]) === reg.n && limpiarCodigo_(filas[i][4]) === reg.codigo) {
+      hoja.getRange(i + 2, 7).setValue('Descartado');
+      return true;
+    }
+  }
+  return false;
+}
+
+function conLockSorteo_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+
+function sortear_(premioDado) {
+  const premio = limpiarPremioSorteo_(premioDado);
+  if (!premio) return { estado: 'error', mensaje: 'Escribe el nombre del premio antes de sortear.' };
+  const pc = participantesSorteo_();
+  if (pc.error) return { estado: 'error', mensaje: pc.error };
+  return conLockSorteo_(function () {
+    const s = leerSorteoDurable_();
+    const avisos = [];
+    const reg = sortearInterno_(pc, s, premio, avisos);
+    if (!reg) {
+      const r = resumenSorteo_(pc, s, premio);
+      r.estado = 'sin_participantes';
+      r.mensaje = pc.participantes.length
+        ? 'No quedan participantes: todos los que ingresaron ya ganaron' + (s.descartados && s.descartados.premio === normPremio_(premio) ? ' o fueron descartados para este premio' : '') + '.'
+        : 'No hay participantes: ningún código de la pestaña "' + pc.hoja + '" tiene ingreso registrado.';
+      return r;
+    }
+    guardarSorteo_(s);
+    const r = resumenSorteo_(pc, s, premio);
+    r.ganador = reg;
+    if (avisos.length) r.avisoHoja = avisos.join(' ');
+    return r;
+  });
+}
+
+// Descarta el último resultado (no cuenta como ganador) y, si se pide, vuelve a sortear el mismo premio
+// sin ese código.
+function descartarSorteo_(volverASortear) {
+  const pc = participantesSorteo_();
+  if (pc.error) return { estado: 'error', mensaje: pc.error };
+  return conLockSorteo_(function () {
+    const s = leerSorteoDurable_();
+    const ult = s.historial[s.historial.length - 1];
+    if (!ult || ult.estado !== 'ganador') {
+      const r = resumenSorteo_(pc, s);
+      r.estado = 'sin_resultado';
+      r.mensaje = 'No hay un resultado para descartar.';
+      return r;
+    }
+    const avisos = [];
+    ult.estado = 'descartado';
+    const i = s.ganadores.lastIndexOf(ult.codigo);
+    if (i >= 0) s.ganadores.splice(i, 1);
+    const np = normPremio_(ult.premio);
+    if (!s.descartados || s.descartados.premio !== np) s.descartados = { premio: np, codigos: [] };
+    if (s.descartados.codigos.indexOf(ult.codigo) < 0) s.descartados.codigos.push(ult.codigo);
+    if (s.anuncio && s.anuncio.id === ult.n) s.anuncio = null;
+    try {
+      if (!marcarDescartadoEnHoja_(ult)) avisos.push('No se encontró la fila del sorteo ' + ult.n + ' en la hoja "' + HOJA_SORTEOS + '".');
+    } catch (err) {
+      avisos.push('No se pudo marcar en la hoja "' + HOJA_SORTEOS + '": ' + String((err && err.message) || err));
+    }
+    let reg = null;
+    if (volverASortear) reg = sortearInterno_(pc, s, ult.premio, avisos);
+    guardarSorteo_(s);
+    const r = resumenSorteo_(pc, s, ult.premio);
+    r.descartado = ult;
+    if (reg) r.ganador = reg;
+    if (volverASortear && !reg) {
+      r.estado = 'sin_participantes';
+      r.mensaje = 'Se descartó ' + ult.codigo + ', pero no quedan participantes para volver a sortear "' + ult.premio + '".';
+    }
+    if (avisos.length) r.avisoHoja = avisos.join(' ');
+    return r;
+  });
+}
+
+function ocultarSorteo_() {
+  return conLockSorteo_(function () {
+    const s = leerSorteoDurable_();
+    s.anuncio = null;
+    guardarSorteo_(s);
+    return { estado: 'sorteo_oculto', vs: s.vs, anuncio: null };
+  });
 }
