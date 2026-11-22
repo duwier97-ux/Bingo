@@ -40,7 +40,7 @@
 
     main {
       height: 80vh; padding: 2.4vh 2.5vw 1vh;
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 1.1fr 1fr; gap: 2.2vh 1.6vw;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr); gap: 2.2vh 1.6vw;
     }
     .tarjeta {
       position: relative; min-width: 0; min-height: 0; overflow: hidden;
@@ -56,8 +56,14 @@
       margin-top: .6vh; font-weight: 900; line-height: 1.05; color: var(--c); font-variant-numeric: tabular-nums;
       text-shadow: 0 .5vh 1.4vh rgba(0, 0, 0, .55); white-space: nowrap;
     }
-    .tarjeta.grande .valor { font-size: 15vh; }
-    .tarjeta.media .valor { font-size: min(9vh, 4.6vw); }
+    .tarjeta.grande .valor { font-size: 13vh; }
+    .tarjeta.media .valor { font-size: min(8.4vh, 4.2vw); }
+    /* Detalle de gastos: concepto a la izquierda, valor a la derecha */
+    .detalle { width: 100%; margin-top: 1.4vh; padding-top: 1.2vh; border-top: .2vh solid rgba(203, 213, 225, .2); }
+    .detalle .linea { display: flex; align-items: baseline; justify-content: space-between; gap: 1vw; padding: .45vh 0; font-size: 2.4vh; color: #cbd5e1; text-align: left; }
+    .detalle .linea span { min-width: 0; }
+    .detalle .linea small { font-size: 1.9vh; color: #94a3b8; }
+    .detalle .linea b { flex: 0 0 auto; color: #f1f5f9; font-variant-numeric: tabular-nums; }
     .tarjeta .nota { margin-top: 1vh; font-size: 2.5vh; color: #cbd5e1; }
     .tarjeta .nota b { color: #f1f5f9; }
     .tarjeta.negativo { --c: #f87171 !important; }
@@ -100,7 +106,7 @@
     /* Ventanas */
     .capa { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, .78); padding: 16px; }
     .capa.visible { display: flex; }
-    .capa .caja { width: min(92vw, 480px); padding: 24px; background: rgba(15, 23, 42, .97); border: 2px solid #fbbf24; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, .7); }
+    .capa .caja { width: min(92vw, 480px); max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px; background: rgba(15, 23, 42, .97); border: 2px solid #fbbf24; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, .7); }
     .capa h2 { margin: 0 0 14px; color: #fde68a; font-size: 24px; }
     .capa label { display: block; margin-top: 14px; font-size: 16px; font-weight: 700; color: #e2e8f0; }
     .capa input { width: 100%; margin-top: 6px; padding: 14px; font-size: 20px; border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff; }
@@ -130,6 +136,9 @@
       .tarjeta.grande .valor { font-size: min(22vw, 96px); }
       .tarjeta.media .valor { font-size: min(11vw, 52px); }
       .tarjeta .nota { font-size: 15px; margin-top: 6px; }
+      .detalle { margin-top: 10px; padding-top: 8px; border-top-width: 1px; }
+      .detalle .linea { font-size: 15px; padding: 4px 0; gap: 10px; }
+      .detalle .linea small { font-size: 13px; }
       .mas { font-size: 26px; top: 12px; right: 16px; }
       footer { height: auto; flex-direction: column; align-items: stretch; gap: 12px; padding: 0 16px 24px; }
       #estadoAct { font-size: 15px; justify-content: center; }
@@ -161,9 +170,13 @@
     </section>
     <section class="tarjeta media" id="tjGastos" style="--c:#fca5a5">
       <div class="icono" aria-hidden="true">🏆</div>
-      <div class="rotulo">Gastos en premios</div>
+      <div class="rotulo">Gastos</div>
       <div class="valor" id="vGastos">–</div>
-      <div class="nota">Total de premios del evento</div>
+      <div class="detalle">
+        <div class="linea"><span>Premios</span><b id="dPremios">–</b></div>
+        <div class="linea"><span>Talonarios <small>(comprobantes de venta)</small></span><b id="dTalonarios">–</b></div>
+        <div class="linea"><span>Tablas adquiridas</span><b id="dTablasAdq">–</b></div>
+      </div>
     </section>
     <section class="tarjeta media" id="tjSaldo" style="--c:#fde68a">
       <div class="icono" aria-hidden="true">📊</div>
@@ -190,8 +203,12 @@
       <h2>⚙️ Ajustes del resumen</h2>
       <label for="inPrecio">Precio por tabla (pesos)</label>
       <input id="inPrecio" inputmode="numeric" autocomplete="off">
-      <label for="inGastos">Gastos en premios (pesos)</label>
-      <input id="inGastos" inputmode="numeric" autocomplete="off">
+      <label for="inPremios">Gastos: premios (pesos)</label>
+      <input id="inPremios" inputmode="numeric" autocomplete="off">
+      <label for="inTalonarios">Gastos: talonarios, comprobantes de venta (pesos)</label>
+      <input id="inTalonarios" inputmode="numeric" autocomplete="off">
+      <label for="inTablasAdq">Gastos: tablas adquiridas (pesos)</label>
+      <input id="inTablasAdq" inputmode="numeric" autocomplete="off">
       <p class="ayuda">Se guardan solo en este navegador. Puedes escribir 10000, 10.000 o $ 10.000.</p>
       <p class="error" id="configError"></p>
       <div class="fila">
@@ -219,7 +236,9 @@
     var PPTX_URL = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
     var PPTX_SRI = 'sha384-Cck14aA9cifjYolcnjebXRfWGkz5ltHMBiG4px/j8GS+xQcb7OhNQWZYyWjQ+UwQ';
     var INTERVALO_MS = 30000;
-    var DEFECTO = { precio: 10000, gastos: 500000 };
+    var DEFECTO = { precio: 10000, premios: 500000, talonarios: 12000, tablasAdq: 135000 };
+    // Gastos: [clave en la configuración, campo del engranaje, nombre para los mensajes]
+    var GASTOS = [['premios', 'inPremios', 'los premios'], ['talonarios', 'inTalonarios', 'los talonarios'], ['tablasAdq', 'inTablasAdq', 'las tablas adquiridas']];
     var CLAVE_LS = 'claveResumen', CONFIG_LS = 'resumenBingoConfig';
     var TITULO = 'Gran Bingo Municipal', FECHA_EVENTO = '22 de noviembre de 2026';
     var COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0, minimumFractionDigits: 0 });
@@ -239,10 +258,11 @@
     function leerConfig() {
       var c = {};
       try { c = JSON.parse(localStorage.getItem(CONFIG_LS) || '{}') || {}; } catch (e) { c = {}; }
-      return {
-        precio: esMonto(c.precio) ? c.precio : DEFECTO.precio,
-        gastos: esMonto(c.gastos) ? c.gastos : DEFECTO.gastos
-      };
+      // Fase 3: "gastos" era solo premios; si quedó guardado así, se usa como premios.
+      if (c.premios === undefined && esMonto(c.gastos)) c.premios = c.gastos;
+      var r = {};
+      Object.keys(DEFECTO).forEach(function (k) { r[k] = esMonto(c[k]) ? c[k] : DEFECTO[k]; });
+      return r;
     }
     function esMonto(n) { return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 999999999999; }
     // "10000", "10.000", "$ 10.000", "10.000,00" -> 10000; null si no es un monto válido
@@ -253,27 +273,31 @@
     }
     function abrirConfig() {
       $('inPrecio').value = NUM.format(config.precio);
-      $('inGastos').value = NUM.format(config.gastos);
+      GASTOS.forEach(function (g) { $(g[1]).value = NUM.format(config[g[0]]); });
       $('configError').textContent = '';
       $('config').classList.add('visible');
       $('inPrecio').focus();
     }
     function cerrarConfig() { $('config').classList.remove('visible'); }
     function guardarConfig() {
-      var p = leerMonto($('inPrecio').value), g = leerMonto($('inGastos').value);
-      if (p === null) { $('configError').textContent = 'El precio debe ser un número en pesos (solo cifras).'; return; }
-      if (g === null) { $('configError').textContent = 'Los gastos deben ser un número en pesos (solo cifras).'; return; }
-      config = { precio: p, gastos: g };
+      var nueva = { precio: leerMonto($('inPrecio').value) };
+      if (nueva.precio === null) { $('configError').textContent = 'El precio debe ser un número en pesos (solo cifras).'; $('inPrecio').focus(); return; }
+      for (var i = 0; i < GASTOS.length; i++) {
+        var g = GASTOS[i];
+        nueva[g[0]] = leerMonto($(g[1]).value);
+        if (nueva[g[0]] === null) { $('configError').textContent = 'El gasto de ' + g[2] + ' debe ser un número en pesos (solo cifras).'; $(g[1]).focus(); return; }
+      }
+      config = nueva;
       try { localStorage.setItem(CONFIG_LS, JSON.stringify(config)); } catch (e) {}
       cerrarConfig();
       pintar(false);
     }
     function restaurarConfig() {
       $('inPrecio').value = NUM.format(DEFECTO.precio);
-      $('inGastos').value = NUM.format(DEFECTO.gastos);
+      GASTOS.forEach(function (g) { $(g[1]).value = NUM.format(DEFECTO[g[0]]); });
       $('configError').textContent = '';
     }
-    ['inPrecio', 'inGastos'].forEach(function (id) {
+    ['inPrecio', 'inPremios', 'inTalonarios', 'inTablasAdq'].forEach(function (id) {
       $(id).addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardarConfig(); if (ev.key === 'Escape') cerrarConfig(); });
     });
 
@@ -372,9 +396,11 @@
     function cifras() {
       var t = datos ? datos.tablasVendidas : 0;
       var recaudado = t * config.precio;
+      var gastos = config.premios + config.talonarios + config.tablasAdq;
       return {
         tablas: t,
-        recaudado: recaudado, gastos: config.gastos, saldo: recaudado - config.gastos
+        recaudado: recaudado, premios: config.premios, talonarios: config.talonarios, tablasAdq: config.tablasAdq,
+        gastos: gastos, saldo: recaudado - gastos
       };
     }
     function pintar(conMas) {
@@ -383,6 +409,9 @@
       animar('vTablas', 'tjTablas', c.tablas, NUM.format, conMas);
       animar('vRecaudado', 'tjRecaudado', c.recaudado, COP.format, false);
       animar('vGastos', 'tjGastos', c.gastos, COP.format, false);
+      $('dPremios').textContent = COP.format(c.premios);
+      $('dTalonarios').textContent = COP.format(c.talonarios);
+      $('dTablasAdq').textContent = COP.format(c.tablasAdq);
       animar('vSaldo', 'tjSaldo', c.saldo, COP.format, false);
       $('tjSaldo').classList.toggle('negativo', c.saldo < 0);
       $('nTablas').textContent = 'Personas registradas con su código';
@@ -390,7 +419,7 @@
       $('nRecaudado').appendChild(document.createTextNode(NUM.format(c.tablas) + ' × '));
       var b = document.createElement('b'); b.textContent = COP.format(config.precio); $('nRecaudado').appendChild(b);
       $('nRecaudado').appendChild(document.createTextNode(' por tabla'));
-      $('nSaldo').textContent = c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para cubrir los premios' : 'Recaudado menos gastos';
+      $('nSaldo').textContent = c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para cubrir los gastos' : 'Recaudado menos gastos';
     }
 
     // Contador animado: va del valor que se ve al nuevo en ~1,4 s. Si sube, la tarjeta brilla.
@@ -553,20 +582,41 @@
       ], { x: 2.6, y: 0.04, w: 4.8, h: 0.84, align: 'center', valign: 'middle', fontFace: FUENTE, margin: 0, shadow: { type: 'outer', blur: 3, offset: 1, angle: 90, color: '000000', opacity: 0.45 } });
       s.addText(FECHA_EVENTO, { x: 7.2, y: 0.2, w: 2.55, h: 0.5, align: 'right', valign: 'middle', fontFace: FUENTE, fontSize: 13, bold: true, color: 'FDE68A', margin: 0 });
 
-      // Tarjetas
-      function tarjeta(x, y, w, h, color, rotulo, valor, nota, grande) {
+      // Tarjetas: el contenido (rótulo, valor, nota o detalle) se centra en vertical dentro de cada una.
+      function tarjeta(x, y, w, h, color, rotulo, valor, op) {
+        op = op || {};
         s.addShape(S.roundRect, { x: x, y: y, w: w, h: h, rectRadius: 0.14, fill: { color: '0F172A', transparency: 8 }, line: { color: 'FBBF24', width: 1.25, transparency: 45 },
           shadow: { type: 'outer', blur: 8, offset: 3, angle: 90, color: '000000', opacity: 0.5 } });
         s.addShape(S.rect, { x: x + 0.25, y: y + 0.02, w: w - 0.5, h: 0.06, fill: { color: color }, line: { type: 'none' } });
-        s.addText(rotulo, { x: x, y: y + 0.14, w: w, h: 0.36, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: grande ? 15 : 13, bold: true, color: 'FDE68A', margin: 0 });
-        s.addText(valor, { x: x + 0.1, y: y + 0.48, w: w - 0.2, h: grande ? 0.95 : 0.62, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: grande ? 54 : 26, bold: true, color: color, fit: 'shrink', margin: 0 });
-        if (nota) s.addText(nota, { x: x + 0.1, y: y + h - 0.42, w: w - 0.2, h: 0.32, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10.5, color: 'CBD5E1', margin: 0 });
+        var hRot = 0.36, hVal = op.grande ? 0.85 : 0.6, hNota = op.nota ? 0.34 : 0, hDet = op.detalle ? 0.12 + op.detalle.length * 0.27 : 0;
+        var yy = y + 0.04 + (h - 0.04 - hRot - hVal - hNota - hDet) / 2;
+        s.addText(rotulo, { x: x, y: yy, w: w, h: hRot, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: op.grande ? 15 : 13, bold: true, color: 'FDE68A', margin: 0 });
+        yy += hRot;
+        s.addText(valor, { x: x + 0.1, y: yy, w: w - 0.2, h: hVal, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: op.grande ? 54 : 26, bold: true, color: color, fit: 'shrink', margin: 0 });
+        yy += hVal;
+        if (op.nota) s.addText(op.nota, { x: x + 0.1, y: yy, w: w - 0.2, h: hNota, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10.5, color: 'CBD5E1', margin: 0 });
+        if (op.detalle) {
+          yy += 0.06;
+          s.addShape(S.line, { x: x + 0.25, y: yy, w: w - 0.5, h: 0, line: { color: '475569', width: 0.75 } });
+          yy += 0.06;
+          op.detalle.forEach(function (d) {
+            s.addText(d[1] ? [{ text: d[0] + ' ', options: { color: 'CBD5E1' } }, { text: d[1], options: { color: '94A3B8', fontSize: 9 } }] : d[0],
+              { x: x + 0.25, y: yy, w: w - 1.35, h: 0.27, align: 'left', valign: 'middle', fontFace: FUENTE, fontSize: 11, color: 'CBD5E1', margin: 0 });
+            s.addText(d[2], { x: x + w - 1.25, y: yy, w: 1.0, h: 0.27, align: 'right', valign: 'middle', fontFace: FUENTE, fontSize: 11, bold: true, color: 'F1F5F9', margin: 0 });
+            yy += 0.27;
+          });
+        }
       }
-      tarjeta(0.35, 1.2, 9.3, 1.95, '60A5FA', 'Tablas vendidas', NUM.format(c.tablas), 'Personas registradas con su código', true);
+      tarjeta(0.35, 1.13, 9.3, 1.62, '60A5FA', 'Tablas vendidas', NUM.format(c.tablas), { grande: true, nota: 'Personas registradas con su código' });
       var saldoColor = c.saldo < 0 ? 'F87171' : 'FDE68A';
-      tarjeta(0.35, 3.35, 2.95, 1.6, '86EFAC', 'Total recaudado', COP.format(c.recaudado), NUM.format(c.tablas) + ' × ' + COP.format(config.precio) + ' por tabla');
-      tarjeta(3.525, 3.35, 2.95, 1.6, 'FCA5A5', 'Gastos en premios', COP.format(c.gastos), 'Total de premios del evento');
-      tarjeta(6.7, 3.35, 2.95, 1.6, saldoColor, 'Saldo restante', COP.format(c.saldo), c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para los premios' : 'Recaudado menos gastos');
+      // Fila de abajo: la tarjeta de gastos es más ancha para que quepa el detalle.
+      tarjeta(0.35, 2.92, 2.75, 2.13, '86EFAC', 'Total recaudado', COP.format(c.recaudado), { nota: NUM.format(c.tablas) + ' × ' + COP.format(config.precio) + ' por tabla' });
+      tarjeta(3.25, 2.92, 3.5, 2.13, 'FCA5A5', 'Gastos', COP.format(c.gastos), { detalle: [
+        ['Premios', '', COP.format(c.premios)],
+        ['Talonarios', '(comprobantes de venta)', COP.format(c.talonarios)],
+        ['Tablas adquiridas', '', COP.format(c.tablasAdq)]
+      ] });
+      tarjeta(6.9, 2.92, 2.75, 2.13, saldoColor, 'Saldo restante', COP.format(c.saldo), { nota: c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para los gastos' : 'Recaudado menos gastos' });
 
       var d = new Date(ultimaOk || Date.now());
       var corte = d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
