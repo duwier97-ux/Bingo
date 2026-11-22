@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Resumen · Gran Bingo Municipal</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { background: #0b1026; }
+    body {
+      margin: 0; min-height: 100vh; overflow: hidden;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #f1f5f9;
+      background-color: #0b1026;
+      background-image:
+        radial-gradient(ellipse at 50% -10%, rgba(124, 58, 237, .45), transparent 60%),
+        radial-gradient(ellipse at 100% 100%, rgba(225, 29, 72, .28), transparent 55%),
+        radial-gradient(ellipse at 0% 80%, rgba(37, 99, 235, .25), transparent 50%),
+        linear-gradient(rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(255, 255, 255, .045) 2px, transparent 2px),
+        linear-gradient(160deg, #1e1b4b 0%, #0b1026 55%, #1a0b2e 100%);
+      background-size: auto, auto, auto, 56px 56px, 56px 56px, auto;
+      background-attachment: fixed;
+    }
+    header {
+      height: 11vh; display: flex; align-items: center; justify-content: space-between; gap: 2vw; padding: 0 2.5vw;
+      background: linear-gradient(90deg, rgba(37, 99, 235, .85), rgba(124, 58, 237, .85), rgba(225, 29, 72, .85));
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .45); border-bottom: .5vh solid #fbbf24;
+    }
+    header .titulo { font-size: 5.2vh; font-weight: 900; letter-spacing: .1vw; text-shadow: 0 .3vh .8vh rgba(0, 0, 0, .5); text-align: center; line-height: 1.05; }
+    header .titulo small { display: block; font-size: 2.4vh; font-weight: 800; letter-spacing: .4vh; color: #fde68a; text-transform: uppercase; }
+    header .fecha { font-size: 3vh; font-weight: 800; color: #fde68a; text-align: right; min-width: 22vw; }
+    header .bolitas { display: flex; gap: .8vh; min-width: 22vw; }
+    header .bolitas span {
+      width: 5vh; height: 5vh; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2.6vh; font-weight: 900; color: #0f172a;
+      background: radial-gradient(circle at 50% 50%, #fff 0 45%, transparent 47%), var(--c);
+      box-shadow: inset -.4vh -.4vh .6vh rgba(0, 0, 0, .3), 0 .3vh .5vh rgba(0, 0, 0, .4);
+    }
+
+    main {
+      height: 80vh; padding: 2.4vh 2.5vw 1vh;
+      display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: 1.15fr 1fr; gap: 2.2vh 1.6vw;
+    }
+    .tarjeta {
+      position: relative; min-width: 0; min-height: 0; overflow: hidden;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+      padding: 2vh 1.5vw; border-radius: 2.4vh;
+      background: rgba(15, 23, 42, .86); border: .3vh solid rgba(251, 191, 36, .45);
+      box-shadow: 0 1vh 3vh rgba(0, 0, 0, .5), inset 0 .6vh 0 var(--c);
+    }
+    .tarjeta.grande { grid-column: span 3; }
+    .tarjeta.media { grid-column: span 2; }
+    .tarjeta .icono { font-size: 5vh; line-height: 1; }
+    .tarjeta .rotulo { margin-top: .8vh; font-size: 3.4vh; font-weight: 800; color: #fde68a; letter-spacing: .05vw; }
+    .tarjeta .valor {
+      margin-top: .6vh; font-weight: 900; line-height: 1.05; color: var(--c); font-variant-numeric: tabular-nums;
+      text-shadow: 0 .5vh 1.4vh rgba(0, 0, 0, .55); white-space: nowrap;
+    }
+    .tarjeta.grande .valor { font-size: 15vh; }
+    .tarjeta.media .valor { font-size: min(9vh, 4.6vw); }
+    .tarjeta .nota { margin-top: 1vh; font-size: 2.5vh; color: #cbd5e1; }
+    .tarjeta .nota b { color: #f1f5f9; }
+    .tarjeta.negativo { --c: #f87171 !important; }
+
+    /* Animación cuando sube la cifra */
+    .tarjeta.sube { animation: brillo 1.3s ease-out; }
+    .tarjeta.sube .valor { animation: salto 1.3s cubic-bezier(.2, 1.4, .4, 1); }
+    @keyframes salto { 0% { transform: scale(1); } 25% { transform: scale(1.12); } 100% { transform: scale(1); } }
+    @keyframes brillo {
+      0% { box-shadow: 0 1vh 3vh rgba(0, 0, 0, .5), inset 0 .6vh 0 var(--c), 0 0 0 0 rgba(251, 191, 36, .9); border-color: #fde68a; }
+      100% { box-shadow: 0 1vh 3vh rgba(0, 0, 0, .5), inset 0 .6vh 0 var(--c), 0 0 0 3vh rgba(251, 191, 36, 0); }
+    }
+    .mas {
+      position: absolute; top: 2vh; right: 2vw; font-size: 4.4vh; font-weight: 900; color: #86efac;
+      text-shadow: 0 .3vh .8vh rgba(0, 0, 0, .6); pointer-events: none; animation: flota 2.4s ease-out forwards;
+    }
+    @keyframes flota { 0% { opacity: 0; transform: translateY(2vh) scale(.6); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-5vh) scale(1); } }
+
+    .barra { width: 70%; height: 1.6vh; margin-top: 1.4vh; border-radius: 99px; background: rgba(51, 65, 85, .8); overflow: hidden; }
+    .barra div { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #7c3aed, #c4b5fd); transition: width 1.2s ease-out; }
+
+    footer {
+      height: 9vh; display: flex; align-items: center; justify-content: space-between; gap: 1.5vw; padding: 0 2.5vw 1.2vh;
+    }
+    #estadoAct { font-size: 2.4vh; color: #cbd5e1; display: flex; align-items: center; gap: 1vh; min-width: 0; }
+    #estadoAct .punto { width: 1.6vh; height: 1.6vh; border-radius: 50%; background: #22c55e; box-shadow: 0 0 1vh #22c55e; flex: 0 0 auto; }
+    #estadoAct.mal { color: #fca5a5; font-weight: 800; }
+    #estadoAct.mal .punto { background: #ef4444; box-shadow: 0 0 1vh #ef4444; }
+    #estadoAct.cargando .punto { background: #fbbf24; box-shadow: 0 0 1vh #fbbf24; animation: parpadeo .8s infinite alternate; }
+    @keyframes parpadeo { to { opacity: .3; } }
+    .botones { display: flex; gap: 1vw; flex-wrap: wrap; justify-content: flex-end; }
+    .botones button {
+      font: inherit; font-size: 2.2vh; font-weight: 800; padding: 1.2vh 1.4vw; border-radius: 1.2vh; cursor: pointer;
+      border: .2vh solid rgba(251, 191, 36, .5); background: rgba(30, 41, 59, .85); color: #f1f5f9;
+    }
+    .botones button:hover { background: rgba(51, 65, 85, .95); }
+    .botones button:disabled { opacity: .55; cursor: wait; }
+    .botones #btnPptx { background: linear-gradient(90deg, #c2410c, #ea580c); border-color: #fdba74; }
+    #btnActualizar.girando .gira { display: inline-block; animation: giro .9s linear infinite; }
+    @keyframes giro { to { transform: rotate(360deg); } }
+
+    /* Ventanas */
+    .capa { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, .78); padding: 16px; }
+    .capa.visible { display: flex; }
+    .capa .caja { width: min(92vw, 480px); padding: 24px; background: rgba(15, 23, 42, .97); border: 2px solid #fbbf24; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, .7); }
+    .capa h2 { margin: 0 0 14px; color: #fde68a; font-size: 24px; }
+    .capa label { display: block; margin-top: 14px; font-size: 16px; font-weight: 700; color: #e2e8f0; }
+    .capa input { width: 100%; margin-top: 6px; padding: 14px; font-size: 20px; border-radius: 10px; border: 1px solid #64748b; background: #1e293b; color: #fff; }
+    .capa .fila { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .capa button { flex: 1 1 auto; padding: 14px; font-size: 17px; font-weight: 800; border: 0; border-radius: 10px; color: #fff; cursor: pointer; background: #2563eb; }
+    .capa button.sec { background: #334155; }
+    .capa .ayuda { font-size: 14px; color: #94a3b8; margin: 6px 0 0; }
+    .capa .error { color: #fca5a5; min-height: 1.3em; margin: 12px 0 0; font-weight: 700; }
+    .capa .enlace { background: none; padding: 6px 0; margin-top: 14px; font-size: 14px; font-weight: 600; color: #94a3b8; text-decoration: underline; flex: none; }
+
+    #confeti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+
+    /* Celular / pantalla vertical: una columna y desplazamiento normal */
+    @media (max-width: 760px), (orientation: portrait) and (max-width: 1100px) {
+      body { overflow: auto; }
+      header { height: auto; flex-direction: column; gap: 8px; padding: 14px 16px; }
+      header .bolitas, header .fecha { min-width: 0; }
+      header .bolitas span { width: 34px; height: 34px; font-size: 17px; }
+      header .titulo { font-size: 28px; }
+      header .titulo small { font-size: 13px; letter-spacing: 2px; }
+      header .fecha { font-size: 16px; text-align: center; }
+      main { height: auto; grid-template-columns: 1fr; grid-template-rows: none; gap: 14px; padding: 16px; }
+      .tarjeta.grande, .tarjeta.media { grid-column: auto; }
+      .tarjeta { padding: 18px 14px; border-radius: 16px; border-width: 2px; box-shadow: 0 8px 22px rgba(0, 0, 0, .5), inset 0 5px 0 var(--c); }
+      .tarjeta .icono { font-size: 30px; }
+      .tarjeta .rotulo { font-size: 19px; margin-top: 4px; }
+      .tarjeta.grande .valor { font-size: min(22vw, 96px); }
+      .tarjeta.media .valor { font-size: min(11vw, 52px); }
+      .tarjeta .nota { font-size: 15px; margin-top: 6px; }
+      .barra { height: 10px; margin-top: 10px; }
+      .mas { font-size: 26px; top: 12px; right: 16px; }
+      footer { height: auto; flex-direction: column; align-items: stretch; gap: 12px; padding: 0 16px 24px; }
+      #estadoAct { font-size: 15px; justify-content: center; }
+      #estadoAct .punto { width: 11px; height: 11px; }
+      .botones { justify-content: stretch; gap: 10px; }
+      .botones button { flex: 1 1 45%; font-size: 15px; padding: 12px 10px; border-radius: 10px; border-width: 1px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bolitas" aria-hidden="true"><span style="--c:#2563eb">B</span><span style="--c:#dc2626">I</span><span style="--c:#7c3aed">N</span><span style="--c:#16a34a">G</span><span style="--c:#f59e0b">O</span></div>
+    <div class="titulo"><small>Resumen de ventas</small>Gran Bingo Municipal</div>
+    <div class="fecha">22 de noviembre de 2026</div>
+  </header>
+
+  <main>
+    <section class="tarjeta grande" id="tjTablas" style="--c:#60a5fa">
+      <div class="icono" aria-hidden="true">🎟️</div>
+      <div class="rotulo">Tablas vendidas</div>
+      <div class="valor" id="vTablas">–</div>
+      <div class="nota" id="nTablas">&nbsp;</div>
+    </section>
+    <section class="tarjeta grande" id="tjAsistentes" style="--c:#c4b5fd">
+      <div class="icono" aria-hidden="true">🙋</div>
+      <div class="rotulo">Asistentes que ya ingresaron</div>
+      <div class="valor" id="vAsistentes">–</div>
+      <div class="barra"><div id="barraAsistentes"></div></div>
+      <div class="nota" id="nAsistentes">&nbsp;</div>
+    </section>
+    <section class="tarjeta media" id="tjRecaudado" style="--c:#86efac">
+      <div class="icono" aria-hidden="true">💰</div>
+      <div class="rotulo">Total recaudado</div>
+      <div class="valor" id="vRecaudado">–</div>
+      <div class="nota" id="nRecaudado">&nbsp;</div>
+    </section>
+    <section class="tarjeta media" id="tjGastos" style="--c:#fca5a5">
+      <div class="icono" aria-hidden="true">🏆</div>
+      <div class="rotulo">Gastos en premios</div>
+      <div class="valor" id="vGastos">–</div>
+      <div class="nota">Total de premios del evento</div>
+    </section>
+    <section class="tarjeta media" id="tjSaldo" style="--c:#fde68a">
+      <div class="icono" aria-hidden="true">📊</div>
+      <div class="rotulo">Saldo restante</div>
+      <div class="valor" id="vSaldo">–</div>
+      <div class="nota" id="nSaldo">Recaudado menos gastos</div>
+    </section>
+  </main>
+
+  <footer>
+    <div id="estadoAct" class="cargando"><span class="punto"></span><span id="textoAct">Esperando datos…</span></div>
+    <div class="botones">
+      <button id="btnActualizar" onclick="actualizarAhora()"><span class="gira">⟳</span> Actualizar ahora</button>
+      <button id="btnConfig" onclick="abrirConfig()" title="Precio y gastos">⚙️ Ajustes</button>
+      <button id="btnPptx" onclick="descargarPowerPoint()">⬇️ Descargar PowerPoint</button>
+      <button id="btnPantalla" onclick="pantallaCompleta()">⛶ Pantalla completa</button>
+    </div>
+  </footer>
+
+  <canvas id="confeti"></canvas>
+
+  <div id="config" class="capa">
+    <div class="caja">
+      <h2>⚙️ Ajustes del resumen</h2>
+      <label for="inPrecio">Precio por tabla (pesos)</label>
+      <input id="inPrecio" inputmode="numeric" autocomplete="off">
+      <label for="inGastos">Gastos en premios (pesos)</label>
+      <input id="inGastos" inputmode="numeric" autocomplete="off">
+      <p class="ayuda">Se guardan solo en este navegador. Puedes escribir 10000, 10.000 o $ 10.000.</p>
+      <p class="error" id="configError"></p>
+      <div class="fila">
+        <button onclick="guardarConfig()">Guardar</button>
+        <button class="sec" onclick="restaurarConfig()">Valores por defecto</button>
+        <button class="sec" onclick="cerrarConfig()">Cancelar</button>
+      </div>
+      <button class="enlace" onclick="cambiarClave()">Cambiar la clave de este equipo</button>
+    </div>
+  </div>
+
+  <div id="login" class="capa visible">
+    <div class="caja">
+      <h2>Clave del resumen</h2>
+      <p class="ayuda" style="margin:0 0 6px">Sirve la clave de la pantalla (TV) o la del juego. Se recuerda en este equipo.</p>
+      <input type="password" id="clave" autocomplete="off" aria-label="Clave">
+      <div class="fila"><button id="btnEntrar" onclick="entrar()">Entrar</button></div>
+      <p class="error" id="loginError"></p>
+    </div>
+  </div>
+
+  <script>
+    // URL del despliegue de Apps Script (termina en /exec)
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzcTqnNERnPIBRAhMR-EiVYOlCC26XBM8rbkWK1nVx3XOcs_ETcaOi1EVIS2GtLcl1m/exec';
+    var PPTX_URL = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+    var PPTX_SRI = 'sha384-Cck14aA9cifjYolcnjebXRfWGkz5ltHMBiG4px/j8GS+xQcb7OhNQWZYyWjQ+UwQ';
+    var INTERVALO_MS = 30000;
+    var DEFECTO = { precio: 10000, gastos: 500000 };
+    var CLAVE_LS = 'claveResumen', CONFIG_LS = 'resumenBingoConfig';
+    var TITULO = 'Gran Bingo Municipal', FECHA_EVENTO = '22 de noviembre de 2026';
+    var COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0, minimumFractionDigits: 0 });
+    var NUM = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
+
+    var clave = '';
+    var config = leerConfig();
+    var datos = null;          // { tablasVendidas, asistentes } de la última consulta buena
+    var ultimaOk = 0;          // Date.now() de la última consulta buena
+    var ultimoError = '';
+    var temporizador = null, enCurso = false;
+    var mostrado = {};         // valor que se ve ahora en cada cifra (para animar desde ahí)
+
+    function $(id) { return document.getElementById(id); }
+
+    // ---------- Configuración (guardada en el navegador) ----------
+    function leerConfig() {
+      var c = {};
+      try { c = JSON.parse(localStorage.getItem(CONFIG_LS) || '{}') || {}; } catch (e) { c = {}; }
+      return {
+        precio: esMonto(c.precio) ? c.precio : DEFECTO.precio,
+        gastos: esMonto(c.gastos) ? c.gastos : DEFECTO.gastos
+      };
+    }
+    function esMonto(n) { return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 999999999999; }
+    // "10000", "10.000", "$ 10.000", "10.000,00" -> 10000; null si no es un monto válido
+    function leerMonto(texto) {
+      var t = String(texto || '').replace(/[\s$ ]/g, '').replace(/,00?$/, '').replace(/\./g, '');
+      if (!/^\d{1,12}$/.test(t)) return null;
+      return Number(t);
+    }
+    function abrirConfig() {
+      $('inPrecio').value = NUM.format(config.precio);
+      $('inGastos').value = NUM.format(config.gastos);
+      $('configError').textContent = '';
+      $('config').classList.add('visible');
+      $('inPrecio').focus();
+    }
+    function cerrarConfig() { $('config').classList.remove('visible'); }
+    function guardarConfig() {
+      var p = leerMonto($('inPrecio').value), g = leerMonto($('inGastos').value);
+      if (p === null) { $('configError').textContent = 'El precio debe ser un número en pesos (solo cifras).'; return; }
+      if (g === null) { $('configError').textContent = 'Los gastos deben ser un número en pesos (solo cifras).'; return; }
+      config = { precio: p, gastos: g };
+      try { localStorage.setItem(CONFIG_LS, JSON.stringify(config)); } catch (e) {}
+      cerrarConfig();
+      pintar(false);
+    }
+    function restaurarConfig() {
+      $('inPrecio').value = NUM.format(DEFECTO.precio);
+      $('inGastos').value = NUM.format(DEFECTO.gastos);
+      $('configError').textContent = '';
+    }
+    ['inPrecio', 'inGastos'].forEach(function (id) {
+      $(id).addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardarConfig(); if (ev.key === 'Escape') cerrarConfig(); });
+    });
+
+    // ---------- API ----------
+    function llamarApi(cuerpo) {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 20000);
+      cuerpo.clave = clave;
+      return fetch(API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(cuerpo), signal: ctrl.signal, cache: 'no-store'
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).finally(function () { clearTimeout(t); });
+    }
+
+    // ---------- Entrada (la clave se pide una sola vez y queda en este equipo) ----------
+    async function entrar() {
+      var v = $('clave').value.trim();
+      if (!v) return;
+      $('btnEntrar').disabled = true;
+      $('loginError').textContent = 'Verificando...';
+      clave = v;
+      try {
+        var r = await llamarApi({ accion: 'resumenVentas' });
+        if (r.estado === 'clave') { clave = ''; borrarClave(); $('loginError').textContent = 'Clave incorrecta'; return; }
+        if (r.estado !== 'ventas') { clave = ''; $('loginError').textContent = r.mensaje || 'Respuesta inesperada del servidor'; return; }
+        try { localStorage.setItem(CLAVE_LS, v); } catch (e) {}
+        $('loginError').textContent = '';
+        $('login').classList.remove('visible');
+        recibir(r, true);
+        programar();
+      } catch (e) {
+        clave = '';
+        $('loginError').textContent = 'Sin conexión. Reintentando...';
+        setTimeout(entrar, 5000);
+      } finally {
+        $('btnEntrar').disabled = false;
+      }
+    }
+    $('clave').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') entrar(); });
+    function borrarClave() { try { localStorage.removeItem(CLAVE_LS); } catch (e) {} }
+    function pedirClave(mensaje) {
+      clearTimeout(temporizador);
+      clave = '';
+      borrarClave();
+      cerrarConfig();
+      $('clave').value = '';
+      $('loginError').textContent = mensaje || '';
+      $('login').classList.add('visible');
+      $('clave').focus();
+    }
+    function cambiarClave() { pedirClave(''); }
+
+    // ---------- Consulta cada 30 s (la siguiente sale cuando termina la anterior) ----------
+    function programar() { clearTimeout(temporizador); temporizador = setTimeout(consultar, INTERVALO_MS); }
+    async function consultar() {
+      if (enCurso || !clave) return;
+      enCurso = true;
+      clearTimeout(temporizador);
+      $('btnActualizar').disabled = true;
+      $('btnActualizar').classList.add('girando');
+      $('estadoAct').classList.add('cargando');
+      try {
+        var r = await llamarApi({ accion: 'resumenVentas' });
+        if (r.estado === 'clave') { enCurso = false; pedirClave('La clave cambió. Escríbela de nuevo.'); return; }
+        if (r.estado === 'ventas') recibir(r, false);
+        else ultimoError = r.mensaje || 'Respuesta inesperada';
+      } catch (e) {
+        ultimoError = 'Sin conexión';
+      } finally {
+        enCurso = false;
+        $('btnActualizar').disabled = false;
+        $('btnActualizar').classList.remove('girando');
+        $('estadoAct').classList.remove('cargando');
+        relojActualizado();
+      }
+      if (clave) programar();
+    }
+    function actualizarAhora() { consultar(); }
+
+    function recibir(r, primera) {
+      var antes = datos;
+      datos = { tablasVendidas: Number(r.tablasVendidas) || 0, asistentes: Number(r.asistentes) || 0 };
+      ultimaOk = Date.now();
+      ultimoError = '';
+      $('estadoAct').classList.remove('cargando');
+      pintar(!primera && antes !== null);
+      // Confeti breve solo cuando suben las tablas vendidas (no al abrir la página).
+      if (!primera && antes && datos.tablasVendidas > antes.tablasVendidas) confeti.rafaga();
+      relojActualizado();
+    }
+
+    // ---------- Pintar ----------
+    function cifras() {
+      var t = datos ? datos.tablasVendidas : 0;
+      var recaudado = t * config.precio;
+      return {
+        tablas: t, asistentes: datos ? datos.asistentes : 0,
+        recaudado: recaudado, gastos: config.gastos, saldo: recaudado - config.gastos
+      };
+    }
+    function pintar(conMas) {
+      if (!datos) return;
+      var c = cifras();
+      animar('vTablas', 'tjTablas', c.tablas, NUM.format, conMas);
+      animar('vAsistentes', 'tjAsistentes', c.asistentes, NUM.format, conMas);
+      animar('vRecaudado', 'tjRecaudado', c.recaudado, COP.format, false);
+      animar('vGastos', 'tjGastos', c.gastos, COP.format, false);
+      animar('vSaldo', 'tjSaldo', c.saldo, COP.format, false);
+      $('tjSaldo').classList.toggle('negativo', c.saldo < 0);
+      $('nTablas').textContent = 'Personas registradas con su código';
+      $('nRecaudado').innerHTML = '';
+      $('nRecaudado').appendChild(document.createTextNode(NUM.format(c.tablas) + ' × '));
+      var b = document.createElement('b'); b.textContent = COP.format(config.precio); $('nRecaudado').appendChild(b);
+      $('nRecaudado').appendChild(document.createTextNode(' por tabla'));
+      var pct = c.tablas ? Math.min(100, Math.round(c.asistentes * 100 / c.tablas)) : 0;
+      $('nAsistentes').textContent = pct + ' % de ' + NUM.format(c.tablas) + ' tablas · faltan ' + NUM.format(Math.max(0, c.tablas - c.asistentes));
+      $('barraAsistentes').style.width = pct + '%';
+      $('nSaldo').textContent = c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para cubrir los premios' : 'Recaudado menos gastos';
+    }
+
+    // Contador animado: va del valor que se ve al nuevo en ~1,4 s. Si sube, la tarjeta brilla.
+    var animaciones = {};
+    function animar(idValor, idTarjeta, hasta, formato, conMas) {
+      var el = $(idValor);
+      var desde = mostrado[idValor];
+      var primera = desde === undefined;
+      if (primera) desde = 0;
+      cancelAnimationFrame(animaciones[idValor]);
+      if (!primera && hasta > desde) {
+        var tj = $(idTarjeta);
+        tj.classList.remove('sube'); void tj.offsetWidth; tj.classList.add('sube');
+        if (conMas) {
+          var m = document.createElement('div');
+          m.className = 'mas';
+          m.textContent = '+' + NUM.format(hasta - desde);
+          tj.appendChild(m);
+          setTimeout(function () { m.remove(); }, 2500);
+        }
+      }
+      mostrado[idValor] = hasta;
+      if (desde === hasta) { el.textContent = formato(hasta); return; }
+      var inicio = performance.now(), dur = primera ? 1600 : 1400;
+      function paso(ahora) {
+        var p = Math.min(1, (ahora - inicio) / dur);
+        var e = 1 - Math.pow(1 - p, 3);
+        el.textContent = formato(Math.round(desde + (hasta - desde) * e));
+        if (p < 1) animaciones[idValor] = requestAnimationFrame(paso);
+      }
+      animaciones[idValor] = requestAnimationFrame(paso);
+    }
+
+    // "Actualizado hace X seg"
+    function relojActualizado() {
+      var caja = $('estadoAct');
+      if (!ultimaOk) { $('textoAct').textContent = ultimoError ? ultimoError + ' (reintentando)' : 'Esperando datos…'; caja.classList.toggle('mal', !!ultimoError); return; }
+      var s = Math.max(0, Math.floor((Date.now() - ultimaOk) / 1000));
+      var hace = s < 60 ? s + ' seg' : Math.floor(s / 60) + ' min ' + (s % 60) + ' seg';
+      if (ultimoError) {
+        caja.classList.add('mal');
+        $('textoAct').textContent = ultimoError + ' · último dato hace ' + hace;
+      } else {
+        caja.classList.remove('mal');
+        $('textoAct').textContent = 'Actualizado hace ' + hace;
+      }
+    }
+    setInterval(relojActualizado, 1000);
+
+    // ---------- Confeti breve (canvas, sin librerías) ----------
+    var confeti = (function () {
+      var lienzo = $('confeti'), ctx = lienzo.getContext('2d');
+      var piezas = [], cuadro = null, ancho = 0, alto = 0, fin = 0;
+      var TONOS = ['#fbbf24', '#f43f5e', '#22c55e', '#3b82f6', '#a855f7', '#f97316', '#fde68a', '#ffffff'];
+      function medir() {
+        var r = window.devicePixelRatio || 1;
+        ancho = lienzo.clientWidth; alto = lienzo.clientHeight;
+        lienzo.width = Math.round(ancho * r); lienzo.height = Math.round(alto * r);
+        ctx.setTransform(r, 0, 0, r, 0, 0);
+      }
+      function pieza() {
+        return {
+          x: Math.random() * ancho, y: -20 - Math.random() * alto * 0.5,
+          w: 6 + Math.random() * 9, h: 8 + Math.random() * 12, vx: -1.5 + Math.random() * 3, vy: 2.5 + Math.random() * 4,
+          giro: Math.random() * 6.28, vg: -0.15 + Math.random() * 0.3, osc: Math.random() * 6.28,
+          color: TONOS[Math.floor(Math.random() * TONOS.length)], redonda: Math.random() < 0.25
+        };
+      }
+      function paso() {
+        ctx.clearRect(0, 0, ancho, alto);
+        var vivas = 0;
+        for (var i = 0; i < piezas.length; i++) {
+          var p = piezas[i];
+          if (p.y > alto + 30) continue;
+          vivas++;
+          p.osc += 0.05; p.x += p.vx + Math.sin(p.osc) * 0.8; p.y += p.vy; p.giro += p.vg;
+          ctx.save();
+          ctx.translate(p.x, p.y); ctx.rotate(p.giro); ctx.scale(1, Math.cos(p.osc * 1.6));
+          ctx.fillStyle = p.color;
+          if (p.redonda) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, 6.28); ctx.fill(); }
+          else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        }
+        if (vivas && Date.now() < fin) cuadro = requestAnimationFrame(paso);
+        else { piezas = []; cuadro = null; ctx.clearRect(0, 0, ancho, alto); }
+      }
+      return {
+        rafaga: function () {
+          medir();
+          var n = Math.min(240, Math.round(ancho * alto / 8000));
+          for (var i = 0; i < n; i++) piezas.push(pieza());
+          fin = Date.now() + 4500;
+          if (!cuadro) cuadro = requestAnimationFrame(paso);
+        },
+        activo: function () { return !!cuadro; }
+      };
+    })();
+
+    // ---------- PowerPoint (PptxGenJS, se carga desde la CDN solo al pulsar el botón) ----------
+    var cargaPptx = null;
+    function cargarPptx() {
+      if (window.PptxGenJS) return Promise.resolve();
+      if (cargaPptx) return cargaPptx;
+      cargaPptx = new Promise(function (ok, mal) {
+        var s = document.createElement('script');
+        s.src = PPTX_URL; s.integrity = PPTX_SRI; s.crossOrigin = 'anonymous';
+        s.onload = function () { window.PptxGenJS ? ok() : mal(new Error('sin PptxGenJS')); };
+        s.onerror = function () { cargaPptx = null; s.remove(); mal(new Error('No se pudo cargar PptxGenJS')); };
+        document.head.appendChild(s);
+      });
+      return cargaPptx;
+    }
+
+    async function descargarPowerPoint() {
+      if (!datos) { alert('Todavía no hay cifras. Espera la primera consulta.'); return; }
+      var b = $('btnPptx'), texto = b.textContent;
+      b.disabled = true; b.textContent = 'Preparando…';
+      try {
+        await cargarPptx();
+        await crearPptx().writeFile({ fileName: 'Resumen-Gran-Bingo-Municipal.pptx' });
+      } catch (e) {
+        alert('No se pudo crear el PowerPoint: ' + ((e && e.message) || e) + '. Revisa la conexión a internet.');
+      } finally {
+        b.disabled = false; b.textContent = texto;
+      }
+    }
+
+    // Diapositiva 16:9 (10 × 5,625 pulgadas) con el mismo tema de la pantalla.
+    function crearPptx() {
+      var c = cifras();
+      var pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_16x9';
+      pptx.title = TITULO + ' · Resumen';
+      pptx.company = TITULO;
+      var S = pptx.ShapeType;
+      var s = pptx.addSlide();
+      s.background = { color: '0B1026' };
+      var FUENTE = 'Segoe UI';
+
+      // Luces de fondo como en la página
+      s.addShape(S.ellipse, { x: 2.5, y: -2.2, w: 5, h: 3.6, fill: { color: '7C3AED', transparency: 72 }, line: { type: 'none' } });
+      s.addShape(S.ellipse, { x: 7.4, y: 3.6, w: 4.2, h: 3, fill: { color: 'E11D48', transparency: 80 }, line: { type: 'none' } });
+      s.addShape(S.ellipse, { x: -1.6, y: 3.3, w: 3.8, h: 2.8, fill: { color: '2563EB', transparency: 80 }, line: { type: 'none' } });
+
+      // Encabezado: franja de colores, línea dorada, balotas, título y fecha
+      s.addShape(S.rect, { x: 0, y: 0, w: 3.34, h: 0.9, fill: { color: '2563EB' }, line: { type: 'none' } });
+      s.addShape(S.rect, { x: 3.33, y: 0, w: 3.34, h: 0.9, fill: { color: '7C3AED' }, line: { type: 'none' } });
+      s.addShape(S.rect, { x: 6.66, y: 0, w: 3.34, h: 0.9, fill: { color: 'E11D48' }, line: { type: 'none' } });
+      s.addShape(S.rect, { x: 0, y: 0.9, w: 10, h: 0.05, fill: { color: 'FBBF24' }, line: { type: 'none' } });
+      var bolas = [['B', '2563EB'], ['I', 'DC2626'], ['N', '7C3AED'], ['G', '16A34A'], ['O', 'F59E0B']];
+      bolas.forEach(function (bo, i) {
+        var x = 0.3 + i * 0.46;
+        s.addShape(S.ellipse, { x: x, y: 0.25, w: 0.4, h: 0.4, fill: { color: bo[1] }, line: { color: 'FFFFFF', width: 1 } });
+        s.addShape(S.ellipse, { x: x + 0.08, y: 0.33, w: 0.24, h: 0.24, fill: { color: 'FFFFFF' }, line: { type: 'none' } });
+        s.addText(bo[0], { x: x, y: 0.25, w: 0.4, h: 0.4, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10, bold: true, color: '0F172A', margin: 0 });
+      });
+      s.addText([
+        { text: 'RESUMEN DE VENTAS', options: { fontSize: 10, bold: true, color: 'FDE68A', charSpacing: 3, breakLine: true } },
+        { text: TITULO, options: { fontSize: 26, bold: true, color: 'FFFFFF' } }
+      ], { x: 2.6, y: 0.04, w: 4.8, h: 0.84, align: 'center', valign: 'middle', fontFace: FUENTE, margin: 0, shadow: { type: 'outer', blur: 3, offset: 1, angle: 90, color: '000000', opacity: 0.45 } });
+      s.addText(FECHA_EVENTO, { x: 7.2, y: 0.2, w: 2.55, h: 0.5, align: 'right', valign: 'middle', fontFace: FUENTE, fontSize: 13, bold: true, color: 'FDE68A', margin: 0 });
+
+      // Tarjetas
+      function tarjeta(x, y, w, h, color, rotulo, valor, nota, grande) {
+        s.addShape(S.roundRect, { x: x, y: y, w: w, h: h, rectRadius: 0.14, fill: { color: '0F172A', transparency: 8 }, line: { color: 'FBBF24', width: 1.25, transparency: 45 },
+          shadow: { type: 'outer', blur: 8, offset: 3, angle: 90, color: '000000', opacity: 0.5 } });
+        s.addShape(S.rect, { x: x + 0.25, y: y + 0.02, w: w - 0.5, h: 0.06, fill: { color: color }, line: { type: 'none' } });
+        s.addText(rotulo, { x: x, y: y + 0.14, w: w, h: 0.36, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: grande ? 15 : 13, bold: true, color: 'FDE68A', margin: 0 });
+        s.addText(valor, { x: x + 0.1, y: y + 0.48, w: w - 0.2, h: grande ? 0.95 : 0.62, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: grande ? 54 : 26, bold: true, color: color, fit: 'shrink', margin: 0 });
+        if (nota) s.addText(nota, { x: x + 0.1, y: y + h - 0.42, w: w - 0.2, h: 0.32, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10.5, color: 'CBD5E1', margin: 0 });
+      }
+      var pct = c.tablas ? Math.min(100, Math.round(c.asistentes * 100 / c.tablas)) : 0;
+      tarjeta(0.35, 1.2, 4.55, 1.95, '60A5FA', 'Tablas vendidas', NUM.format(c.tablas), 'Personas registradas con su código', true);
+      tarjeta(5.1, 1.2, 4.55, 1.95, 'C4B5FD', 'Asistentes que ya ingresaron', NUM.format(c.asistentes), pct + ' % de ' + NUM.format(c.tablas) + ' tablas', true);
+      var saldoColor = c.saldo < 0 ? 'F87171' : 'FDE68A';
+      tarjeta(0.35, 3.35, 2.95, 1.6, '86EFAC', 'Total recaudado', COP.format(c.recaudado), NUM.format(c.tablas) + ' × ' + COP.format(config.precio) + ' por tabla');
+      tarjeta(3.525, 3.35, 2.95, 1.6, 'FCA5A5', 'Gastos en premios', COP.format(c.gastos), 'Total de premios del evento');
+      tarjeta(6.7, 3.35, 2.95, 1.6, saldoColor, 'Saldo restante', COP.format(c.saldo), c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para los premios' : 'Recaudado menos gastos');
+
+      var d = new Date(ultimaOk || Date.now());
+      var corte = d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      s.addText('Cifras con corte al ' + corte, { x: 0.35, y: 5.12, w: 9.3, h: 0.3, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10, color: '94A3B8', margin: 0 });
+      return pptx;
+    }
+
+    function pantallaCompleta() {
+      var d = document.documentElement;
+      if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(function () {});
+      else if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+    }
+
+    // Entrada automática si la clave ya está guardada en este equipo.
+    (function () {
+      var g = null;
+      try { g = localStorage.getItem(CLAVE_LS); } catch (e) {}
+      if (g) { $('clave').value = g; entrar(); } else { $('clave').focus(); }
+    })();
+  </script>
+</body>
+</html>

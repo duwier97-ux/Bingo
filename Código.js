@@ -174,6 +174,13 @@ function resumen_() {
   return { estado: 'resumen', total: total, asistentes: asistentes, pendientes: total - asistentes };
 }
 
+// Página de resumen (resumen.html), solo lectura con CLAVE_TV o CLAVE_JUEGO. Mismos conteos que resumen_():
+// tablasVendidas = filas con código en la columna A (vacías ignoradas); asistentes = de esas, H = TRUE.
+function resumenVentas_() {
+  const r = resumen_();
+  return { estado: 'ventas', tablasVendidas: r.total, asistentes: r.asistentes, hora: formatearHora_(new Date()) };
+}
+
 function registrarIngreso_(codigo, tabla) {
   const codigoLimpio = limpiarCodigo_(codigo);
   if (!codigoLimpio) {
@@ -268,7 +275,7 @@ const MAX_GANADORES_EN_ESTADO = 20;
 
 // 'lectura' = también con CLAVE_TV. 'juego' = solo con CLAVE_JUEGO.
 const ACCIONES_JUEGO = {
-  validarClave: 'lectura', estado: 'lectura',
+  validarClave: 'lectura', estado: 'lectura', resumenVentas: 'lectura',
   marcarBalota: 'juego', quitarBalota: 'juego', deshacerBalota: 'juego',
   fijarFigura: 'juego', fijarPremio: 'juego',
   ganadores: 'juego', confirmarGanador: 'juego', ocultarAnuncio: 'juego', nuevaRonda: 'juego', reiniciarJuego: 'juego',
@@ -284,6 +291,7 @@ function atenderJuego_(accion, datos) {
   switch (accion) {
     case 'validarClave': return { estado: 'clave_ok', rol: rol };
     case 'estado': return estadoPublico_(leerEstado_(), rol);
+    case 'resumenVentas': return resumenVentas_();
     case 'marcarBalota': return marcarBalota_(datos.balota);
     case 'quitarBalota': return quitarBalota_(datos.balota);
     case 'deshacerBalota': return deshacerBalota_();
