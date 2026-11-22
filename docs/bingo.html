@@ -154,6 +154,22 @@
     #sorteoHistorial li .etq { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 800; text-decoration: none; }
     #sorteoHistorial li .etq.d { background: #7f1d1d; color: #fecaca; }
     #sorteoBotones { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+    /* Filtro y revisión de género (solo para el sorteo) */
+    #sorteoFiltroFila { display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; flex-wrap: wrap; }
+    #sorteoFiltroFila label { margin: 0; }
+    #sorteoFiltro { width: auto; min-width: 0; flex: 1 1 180px; }
+    #panelGenero { border-color: rgba(244, 114, 182, .55); }
+    #generoResumen { margin: 0 0 6px; font-weight: 700; }
+    .generoFila { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #334155; }
+    .generoFila:first-child { border-top: 0; }
+    .generoFila .quien { min-width: 0; overflow-wrap: anywhere; }
+    .generoFila .quien b { display: block; }
+    .generoFila .motivo { font-size: 13px; color: #94a3b8; }
+    .generoFila .motivo.hecho { color: #86efac; }
+    .generoBotones { display: flex; gap: 6px; flex: 0 0 auto; }
+    .generoBotones button { min-width: 52px; padding: 10px 0; font-size: 17px; font-weight: 900; background: #334155; box-shadow: 0 3px 0 #1e293b; }
+    .generoBotones button.activo.H { background: #2563eb; box-shadow: 0 3px 0 #1e3a8a; }
+    .generoBotones button.activo.M { background: #db2777; box-shadow: 0 3px 0 #831843; }
   </style>
 </head>
 <body>
@@ -265,6 +281,14 @@
           <div class="panel" id="panelSorteo">
             <h2>🎁 Sorteos adicionales</h2>
             <p class="tenue" id="sorteoFuente">Cargando participantes…</p>
+            <div id="sorteoFiltroFila">
+              <label for="sorteoFiltro">Participan:</label>
+              <select id="sorteoFiltro" onchange="cambioFiltroSorteo()">
+                <option value="todos">Todos</option>
+                <option value="mujeres">Solo mujeres</option>
+                <option value="hombres">Solo hombres</option>
+              </select>
+            </div>
             <div id="sorteoParticipan">Participan – de –</div>
             <p class="tenue" id="sorteoDetalle">Solo participan los códigos de la pestaña que ya registraron su ingreso.</p>
             <label for="sorteoPremio">Premio</label>
@@ -283,6 +307,14 @@
             </div>
             <h2 style="margin-top:14px">Sorteos hechos</h2>
             <ul id="sorteoHistorial" class="tenue"><li>Ninguno todavía.</li></ul>
+          </div>
+
+          <div class="panel" id="panelGenero">
+            <h2>Revisar género</h2>
+            <p class="tenue" style="margin-top:0">El género se deduce del primer nombre en "Base de datos". Aquí salen solo los que ya ingresaron y quedaron sin clasificar (no participan en "solo mujeres" ni "solo hombres" hasta revisarlos) o con baja confianza. Toca H (hombre) o M (mujer); se guarda en la hoja "Género" y manda sobre la deducción. En "Todos" participan siempre.</p>
+            <p id="generoResumen" class="tenue">Cargando…</p>
+            <div id="generoLista"></div>
+            <p class="error" id="generoError"></p>
           </div>
 
           <div class="panel" id="panelReinicio">
@@ -575,8 +607,13 @@
       sorteo = r;
       sorteoVs = r.vs;
       $('sorteoFuente').textContent = 'Pestaña "' + r.hoja + '": códigos en la columna ' + r.colCodigo + (r.colNombre ? ', nombres en la ' + r.colNombre : '') + (r.encabezado ? ' (con encabezados)' : '') + ' · ' + r.total + ' códigos.';
-      $('sorteoParticipan').textContent = 'Participan ' + r.participantes + ' de ' + r.total;
-      var partes = ['Pueden salir ahora: ' + r.disponibles];
+      var f = $('sorteoFiltro').value, gen = r.genero || { mujeres: 0, hombres: 0, sinClasificar: 0 };
+      var dpf = r.disponiblesPorFiltro || { todos: r.disponibles, mujeres: 0, hombres: 0 };
+      if (f === 'mujeres') $('sorteoParticipan').textContent = 'Participan ' + gen.mujeres + (gen.mujeres === 1 ? ' mujer' : ' mujeres') + ' de ' + r.participantes;
+      else if (f === 'hombres') $('sorteoParticipan').textContent = 'Participan ' + gen.hombres + (gen.hombres === 1 ? ' hombre' : ' hombres') + ' de ' + r.participantes;
+      else $('sorteoParticipan').textContent = 'Participan ' + r.participantes + ' de ' + r.total;
+      var partes = ['Pueden salir ahora: ' + (dpf[f] !== undefined ? dpf[f] : r.disponibles)];
+      if (f !== 'todos' && gen.sinClasificar) partes.push(gen.sinClasificar + ' sin clasificar no participan hasta revisarlos');
       if (r.yaGanaron) partes.push('ya ganaron ' + r.yaGanaron);
       partes.push('sin ingreso ' + r.sinIngreso);
       if (r.noEnBase) partes.push('no están en "Base de datos" ' + r.noEnBase);
@@ -585,7 +622,7 @@
       h.textContent = '';
       if (!r.historial.length) h.appendChild(el('li', '', 'Ninguno todavía.'));
       r.historial.forEach(function (x) {
-        var li = el('li', x.estado === 'descartado' ? 'descartado' : '', 'N° ' + x.n + ' · ' + x.premio + ' · ' + x.codigo + (x.nombre ? ' · ' + bonito(x.nombre) : '') + ' · ' + x.hora);
+        var li = el('li', x.estado === 'descartado' ? 'descartado' : '', 'N° ' + x.n + ' · ' + x.premio + (x.filtro && x.filtro !== 'todos' ? ' (solo ' + x.filtro + ')' : '') + ' · ' + x.codigo + (x.nombre ? ' · ' + bonito(x.nombre) : '') + ' · ' + x.hora);
         if (x.estado === 'descartado') li.appendChild(el('span', 'etq d', 'Descartado'));
         h.appendChild(li);
       });
@@ -594,13 +631,60 @@
       b.style.display = ult && ult.estado === 'ganador' ? '' : 'none';
       if (ult && ult.estado === 'ganador') b.textContent = 'Descartar ' + ult.codigo + ' y volver a sortear';
       pintarSorteoPantalla(r.anuncio);
+      pintarGenero(r);
+    }
+
+    function cambioFiltroSorteo() { if (sorteo) pintarSorteo(sorteo); }
+
+    var NOMBRE_GENERO = { H: 'hombre', M: 'mujer' };
+    function pintarGenero(r) {
+      var gen = r.genero, lista = r.revisar || [];
+      if (!gen) { $('generoResumen').textContent = ''; return; }
+      var pend = lista.filter(function (x) { return !x.revisado; });
+      var sin = pend.filter(function (x) { return x.conf === 'sin'; }).length;
+      $('generoResumen').textContent = 'Entre los que ingresaron: ' + gen.mujeres + ' mujeres · ' + gen.hombres + ' hombres · ' + gen.sinClasificar + ' sin clasificar' +
+        (pend.length ? ' — por revisar: ' + sin + ' sin clasificar y ' + (pend.length - sin) + ' de baja confianza' : ' — nada por revisar') +
+        (gen.correcciones ? ' · ' + gen.correcciones + (gen.correcciones === 1 ? ' corregido' : ' corregidos') + ' en la hoja "Género"' : '') + '.';
+      var cont = $('generoLista');
+      cont.textContent = '';
+      lista.forEach(function (x) {
+        var fila = el('div', 'generoFila', '');
+        var quien = el('div', 'quien', '');
+        quien.appendChild(el('b', '', bonito(x.nombre) || x.codigo));
+        var actual = x.revisado || '';
+        var motivo = x.revisado ? 'Revisado: ' + NOMBRE_GENERO[x.revisado] : x.conf === 'sin' ? 'Sin clasificar (' + x.motivo + ')' : 'Parece ' + NOMBRE_GENERO[x.deducido] + ' (' + x.motivo + '), baja confianza';
+        quien.appendChild(el('div', 'motivo' + (x.revisado ? ' hecho' : ''), x.codigo + ' · ' + motivo));
+        fila.appendChild(quien);
+        var bot = el('div', 'generoBotones', '');
+        ['H', 'M'].forEach(function (g) {
+          var b = el('button', g + (actual === g ? ' activo' : ''), g);
+          b.title = NOMBRE_GENERO[g];
+          b.setAttribute('aria-label', x.codigo + ': ' + NOMBRE_GENERO[g]);
+          b.setAttribute('data-codigo', x.codigo);
+          b.onclick = function () { corregirGenero(x.codigo, g, bot); };
+          bot.appendChild(b);
+        });
+        fila.appendChild(bot);
+        cont.appendChild(fila);
+      });
+    }
+
+    function corregirGenero(codigo, g, bot) {
+      $('generoError').textContent = '';
+      Array.prototype.forEach.call(bot.children, function (b) { b.disabled = true; });
+      enCola(function () {
+        return llamarApi({ accion: 'corregirGenero', codigo: codigo, genero: g }).then(function (r) {
+          if (r.estado === 'sorteo') pintarSorteo(r);
+          else $('generoError').textContent = r.mensaje || ('Respuesta: ' + r.estado);
+        }).catch(function (e) { if (textoError(e) !== 'clave') $('generoError').textContent = 'No se guardó: ' + textoError(e); });
+      }).finally(function () { Array.prototype.forEach.call(bot.children, function (b) { b.disabled = false; }); });
     }
 
     function pintarSorteoPantalla(a) {
       $('sorteoEnPantalla').classList.toggle('visible', !!a);
       if (!a) return;
       $('sorteoEnPantallaTexto').textContent = 'En pantalla: sorteo N° ' + a.id + ' · ' + a.codigo;
-      $('sorteoEnPantallaDetalle').textContent = (a.nombre ? bonito(a.nombre) + ' · ' : '') + a.premio + ' · entre ' + a.participantes + ' participantes';
+      $('sorteoEnPantallaDetalle').textContent = (a.nombre ? bonito(a.nombre) + ' · ' : '') + a.premio + ' · entre ' + a.participantes + (a.filtro === 'mujeres' ? ' mujeres' : a.filtro === 'hombres' ? ' hombres' : ' participantes');
     }
 
     function respuestaSorteo(r) {
@@ -624,7 +708,7 @@
       var b = $('btnSortear');
       b.disabled = true; b.textContent = 'Sorteando…';
       enCola(function () {
-        return llamarApi({ accion: 'sortear', premio: premio }).then(respuestaSorteo).catch(function (e) {
+        return llamarApi({ accion: 'sortear', premio: premio, filtro: $('sorteoFiltro').value }).then(respuestaSorteo).catch(function (e) {
           if (textoError(e) !== 'clave') $('sorteoError').textContent = 'No se sorteó: ' + textoError(e);
         });
       }).finally(function () { b.disabled = false; b.textContent = '🎲 Sortear'; });

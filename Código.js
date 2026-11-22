@@ -280,7 +280,7 @@ const ACCIONES_JUEGO = {
   fijarFigura: 'juego', fijarPremio: 'juego',
   ganadores: 'juego', confirmarGanador: 'juego', ocultarAnuncio: 'juego', nuevaRonda: 'juego', reiniciarJuego: 'juego',
   listarTablas: 'juego', activarTabla: 'juego', cargarTablas: 'juego',
-  infoSorteo: 'juego', sortear: 'juego', descartarSorteo: 'juego', ocultarSorteo: 'juego'
+  infoSorteo: 'juego', sortear: 'juego', descartarSorteo: 'juego', ocultarSorteo: 'juego', corregirGenero: 'juego'
 };
 
 function atenderJuego_(accion, datos) {
@@ -306,8 +306,9 @@ function atenderJuego_(accion, datos) {
     case 'listarTablas': return listarTablas_();
     case 'activarTabla': return activarTabla_(datos.tabla, datos.activa);
     case 'cargarTablas': return cargarTablas_(datos.tablas);
-    case 'infoSorteo': return infoSorteo_();
-    case 'sortear': return sortear_(datos.premio);
+    case 'infoSorteo': return infoSorteo_(datos.filtro);
+    case 'sortear': return sortear_(datos.premio, datos.filtro);
+    case 'corregirGenero': return corregirGenero_(datos.codigo, datos.genero);
     case 'descartarSorteo': return descartarSorteo_(datos.volverASortear !== false);
     case 'ocultarSorteo': return ocultarSorteo_();
   }
@@ -740,7 +741,7 @@ const PROP_SORTEO = 'ESTADO_SORTEO';
 const CACHE_SORTEO = 'estado_sorteo';
 const MAX_HISTORIAL_SORTEO = 25;
 const TAM_RULETA = 30;
-const ENCABEZADOS_SORTEOS = ['Fecha', 'Hora', 'N° sorteo', 'Premio', 'Código', 'Nombre', 'Estado'];
+const ENCABEZADOS_SORTEOS = ['Fecha', 'Hora', 'N° sorteo', 'Premio', 'Código', 'Nombre', 'Estado', 'Género'];
 // Forma de un código: PMB-121-T, ABC-12, X1-2-3 … (letras/números separados por guiones)
 const FORMA_CODIGO = /^[A-Z0-9]{1,8}(-[A-Z0-9]{1,8}){1,4}$/;
 
@@ -863,12 +864,13 @@ function participantesSorteo_() {
     const b = enBase[c.codigo];
     if (!b) { noEnBase++; return; }
     if (!b.asistio) { sinIngreso++; return; }
-    participantes.push({ codigo: c.codigo, nombre: c.nombre || b.nombre });
+    participantes.push({ codigo: c.codigo, nombre: c.nombre || b.nombre, nombreBase: b.nombre });
   });
   pc.participantes = participantes;
   pc.total = pc.codigos.length;
   pc.noEnBase = noEnBase;
   pc.sinIngreso = sinIngreso;
+  clasificarParticipantes_(pc, ss, base.filas.map(function (f) { return String(f[COL_NOMBRE - 1] || ''); }));
   return pc;
 }
 
@@ -876,29 +878,36 @@ function normPremio_(t) { return normalizarTexto_(t).replace(/\s+/g, ' '); }
 
 // Quiénes pueden salir ahora: participantes que no han ganado; si se está repitiendo el sorteo de un premio
 // después de descartar, tampoco los descartados para ese mismo premio.
-function elegibles_(pc, s, premio) {
+function elegibles_(pc, s, premio, filtro) {
   const ganaron = {};
   s.ganadores.forEach(function (c) { ganaron[c] = true; });
   const fuera = {};
   if (s.descartados && s.descartados.premio === normPremio_(premio)) s.descartados.codigos.forEach(function (c) { fuera[c] = true; });
-  return pc.participantes.filter(function (p) { return !ganaron[p.codigo] && !fuera[p.codigo]; });
+  return pc.participantes.filter(function (p) { return !ganaron[p.codigo] && !fuera[p.codigo] && pasaFiltro_(p, filtro); });
 }
 
-function resumenSorteo_(pc, s, premio) {
+function resumenSorteo_(pc, s, premio, filtro) {
+  filtro = limpiarFiltro_(filtro);
   const r = {
     estado: 'sorteo', vs: s.vs, hoja: pc.hoja, colCodigo: pc.colCodigo, colNombre: pc.colNombre, encabezado: pc.encabezado,
     total: pc.total, participantes: pc.participantes.length, noEnBase: pc.noEnBase, sinIngreso: pc.sinIngreso,
     yaGanaron: s.ganadores.length, historial: s.historial.slice().reverse(), anuncio: s.anuncio
   };
-  r.disponibles = elegibles_(pc, s, premio === undefined ? '' : premio).length;
+  const pr = premio === undefined ? '' : premio;
+  r.disponibles = elegibles_(pc, s, pr, filtro).length;
+  // Género (solo para el sorteo): cuentas entre los que ingresaron y disponibles por filtro.
+  r.filtro = filtro;
+  r.genero = pc.genero;
+  r.disponiblesPorFiltro = { todos: elegibles_(pc, s, pr, 'todos').length, mujeres: elegibles_(pc, s, pr, 'mujeres').length, hombres: elegibles_(pc, s, pr, 'hombres').length };
+  r.revisar = listaRevisarGenero_(pc);
   if (s.descartados) r.repitiendo = { premio: s.descartados.premio, descartados: s.descartados.codigos.length };
   return r;
 }
 
-function infoSorteo_() {
+function infoSorteo_(filtro) {
   const pc = participantesSorteo_();
   if (pc.error) return { estado: 'error', mensaje: pc.error };
-  return resumenSorteo_(pc, leerSorteo_());
+  return resumenSorteo_(pc, leerSorteo_(), undefined, filtro);
 }
 
 function limpiarPremioSorteo_(premio) {
@@ -906,28 +915,29 @@ function limpiarPremioSorteo_(premio) {
 }
 
 // Elige al azar (con el lock tomado). Devuelve el registro o null si no hay a quién sortear.
-function sortearInterno_(pc, s, premio, avisos) {
-  const lista = elegibles_(pc, s, premio);
+function sortearInterno_(pc, s, premio, avisos, filtro) {
+  filtro = limpiarFiltro_(filtro);
+  const lista = elegibles_(pc, s, premio, filtro);
   if (!lista.length) return null;
   const g = lista[Math.floor(Math.random() * lista.length)];
   if (s.descartados && s.descartados.premio !== normPremio_(premio)) s.descartados = null;
   s.n = (Number(s.n) || 0) + 1;
   const ahora = new Date();
   const reg = {
-    n: s.n, premio: premio, codigo: g.codigo, nombre: g.nombre, estado: 'ganador',
+    n: s.n, premio: premio, codigo: g.codigo, nombre: g.nombre, estado: 'ganador', filtro: filtro,
     fecha: Utilities.formatDate(ahora, ZONA, 'dd/MM/yyyy'), hora: Utilities.formatDate(ahora, ZONA, 'HH:mm:ss')
   };
   s.ganadores.push(g.codigo);
   s.historial.push(reg);
   // Códigos para la animación de la TV: una muestra de participantes (el ganador va al final).
   const ruleta = [];
-  const otros = pc.participantes.filter(function (p) { return p.codigo !== g.codigo; }).map(function (p) { return p.codigo; });
+  const otros = lista.filter(function (p) { return p.codigo !== g.codigo; }).map(function (p) { return p.codigo; });
   for (let i = otros.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = otros[i]; otros[i] = otros[j]; otros[j] = t; }
   for (let i = 0; i < Math.min(TAM_RULETA, otros.length); i++) ruleta.push(otros[i]);
   // uid: único aunque la numeración vuelva a 1 tras reiniciar (la TV lo usa para no repetir la animación).
   s.anuncio = {
     id: s.n, uid: s.n + '-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e9).toString(36), premio: premio, codigo: g.codigo, nombre: g.nombre, hora: reg.hora,
-    participantes: lista.length, ruleta: ruleta
+    participantes: lista.length, filtro: filtro, ruleta: ruleta
   };
   try {
     anotarSorteoEnHoja_(reg);
@@ -944,8 +954,10 @@ function anotarSorteoEnHoja_(reg) {
     hoja = ss.insertSheet(HOJA_SORTEOS);
     hoja.appendRow(ENCABEZADOS_SORTEOS);
     hoja.setFrozenRows(1);
+  } else if (String(hoja.getRange(1, 8, 1, 1).getValues()[0][0] || '') === '') {
+    hoja.getRange(1, 8).setValue('Género');   // hoja creada antes de existir el filtro
   }
-  hoja.appendRow([reg.fecha, reg.hora, reg.n, reg.premio, reg.codigo, reg.nombre, 'Ganador']);
+  hoja.appendRow([reg.fecha, reg.hora, reg.n, reg.premio, reg.codigo, reg.nombre, 'Ganador', nombreFiltro_(reg.filtro)]);
 }
 
 // Marca como "Descartado" la fila del sorteo n en la hoja (busca por N° sorteo y código).
@@ -968,25 +980,30 @@ function conLockSorteo_(fn) {
   try { return fn(); } finally { lock.releaseLock(); }
 }
 
-function sortear_(premioDado) {
+function sortear_(premioDado, filtroDado) {
   const premio = limpiarPremioSorteo_(premioDado);
+  const filtro = limpiarFiltro_(filtroDado);
   if (!premio) return { estado: 'error', mensaje: 'Escribe el nombre del premio antes de sortear.' };
   const pc = participantesSorteo_();
   if (pc.error) return { estado: 'error', mensaje: pc.error };
   return conLockSorteo_(function () {
     const s = leerSorteoDurable_();
     const avisos = [];
-    const reg = sortearInterno_(pc, s, premio, avisos);
+    const reg = sortearInterno_(pc, s, premio, avisos, filtro);
     if (!reg) {
-      const r = resumenSorteo_(pc, s, premio);
+      const r = resumenSorteo_(pc, s, premio, filtro);
       r.estado = 'sin_participantes';
-      r.mensaje = pc.participantes.length
+      const delFiltro = pc.participantes.filter(function (p) { return pasaFiltro_(p, filtro); }).length;
+      r.mensaje = filtro !== 'todos' && pc.participantes.length && !delFiltro
+        ? 'No hay participantes para "' + nombreFiltro_(filtro).toLowerCase() + '": ninguno de los que ingresaron está clasificado como ' + (filtro === 'mujeres' ? 'mujer' : 'hombre') + '.' +
+          (pc.genero.sinClasificar ? ' Hay ' + pc.genero.sinClasificar + ' sin clasificar: revísalos en "Revisar género".' : '')
+        : pc.participantes.length
         ? 'No quedan participantes: todos los que ingresaron ya ganaron' + (s.descartados && s.descartados.premio === normPremio_(premio) ? ' o fueron descartados para este premio' : '') + '.'
         : 'No hay participantes: ningún código de la pestaña "' + pc.hoja + '" tiene ingreso registrado.';
       return r;
     }
     guardarSorteo_(s);
-    const r = resumenSorteo_(pc, s, premio);
+    const r = resumenSorteo_(pc, s, premio, filtro);
     r.ganador = reg;
     if (avisos.length) r.avisoHoja = avisos.join(' ');
     return r;
@@ -1021,14 +1038,14 @@ function descartarSorteo_(volverASortear) {
       avisos.push('No se pudo marcar en la hoja "' + HOJA_SORTEOS + '": ' + String((err && err.message) || err));
     }
     let reg = null;
-    if (volverASortear) reg = sortearInterno_(pc, s, ult.premio, avisos);
+    if (volverASortear) reg = sortearInterno_(pc, s, ult.premio, avisos, ult.filtro);
     guardarSorteo_(s);
-    const r = resumenSorteo_(pc, s, ult.premio);
+    const r = resumenSorteo_(pc, s, ult.premio, ult.filtro);
     r.descartado = ult;
     if (reg) r.ganador = reg;
     if (volverASortear && !reg) {
       r.estado = 'sin_participantes';
-      r.mensaje = 'Se descartó ' + ult.codigo + ', pero no quedan participantes para volver a sortear "' + ult.premio + '".';
+      r.mensaje = 'Se descartó ' + ult.codigo + ', pero no quedan participantes' + (ult.filtro && ult.filtro !== 'todos' ? ' (' + nombreFiltro_(ult.filtro).toLowerCase() + ')' : '') + ' para volver a sortear "' + ult.premio + '".';
     }
     if (avisos.length) r.avisoHoja = avisos.join(' ');
     return r;
@@ -1042,4 +1059,233 @@ function ocultarSorteo_() {
     guardarSorteo_(s);
     return { estado: 'sorteo_oculto', vs: s.vs, anuncio: null };
   });
+}
+
+// =====================================================================
+// ===== GÉNERO PARA SORTEOS FILTRADOS (solo mujeres / solo hombres) =====
+// No usa ninguna columna de género en "Base de datos": se deduce del primer nombre de la columna
+// "Nombre Completo" (en la hoja viene primero el nombre y luego los apellidos). Los nombres compuestos se
+// deciden por el primero ("María José" -> mujer, "José María" -> hombre, "Juan David" -> hombre).
+// Confianza: 'alta' (nombre de la lista), 'baja' (por terminación o por el segundo nombre; participa, pero
+// se lista para revisar) y 'sin' (sin clasificar: unisex, extranjero o desconocido; no participa en un
+// sorteo filtrado hasta que se revise). Las correcciones de la hoja "Género" (Código, Género H/M) mandan.
+// Solo lo usa el sorteo: no toca el bingo ni el ingreso.
+// =====================================================================
+
+const HOJA_GENERO = 'Género';
+const ENCABEZADOS_GENERO = ['Código', 'Género'];
+const FILTROS_SORTEO = { todos: '', mujeres: 'M', hombres: 'H' };
+
+const NOMBRES_MUJER_ = (
+  'maria ana luz carmen rosa martha marta gloria blanca sandra claudia patricia adriana diana paola andrea carolina catalina ' +
+  'natalia nathalia nataly nathaly daniela valentina valeria sofia isabella isabel camila mariana gabriela laura lorena liliana lilian liliam ' +
+  'viviana veronica monica angela angelica alejandra fernanda juliana luisa paula juana johana johanna yohana yuliana yulieth yuli yuly ' +
+  'julieth juliet jessica jesica yessica yesica jenny yenny jennifer jenifer yenifer yennifer kelly karen karina katherine katerine kateryn catherine ' +
+  'leidy leydi lady deisy deysi daisy dayana eliana elena helena estefania stefania stephanie tatiana tania sara sarah salome antonella ' +
+  'milena yamile yamileth yamilet yaneth janeth janet yanet nancy nelly nidia nubia nohora norma olga piedad pilar socorro amparo consuelo ' +
+  'mercedes dolores esperanza fanny francy beatriz teresa tereza cecilia celia lucia lucila lucy luzmila ludivia ligia lida lina marleny ' +
+  'marlene marlen marly maritza mayra maira melisa melissa mery merly mary miriam myriam olivia omaira oneida rubiela ruby ruth shirley ' +
+  'sonia stella estela susana xiomara yolanda yesenia yudy judy yurany yuranis zulma edelmira emilse elsa elvira erika erica esther eugenia ' +
+  'emilia emma fabiola flor floralba gladys graciela gisela hilda ines ingrid irene iris jacqueline jaqueline jakeline jazmin yasmin juanita ' +
+  'julia leonor libia lilia magdalena margarita marcela mariela marisol marina martina matilde maryuri milady mildred nelsy noemi noralba ' +
+  'odilia ofelia otilia rocio rosalba rosmira silvia soraya tulia vanessa vanesa victoria wendy ximena jimena yadira yeimi yeimy yina ' +
+  'yolima yorladis yuleidy zoraida adiela aleyda aracelly aracely amanda amalia carlina cielo cielito cindy damaris dary elizabeth ' +
+  'eliceth emelida geraldine imelda lucedia luzdary samara selena serena alba alicia aura berta bertha betty brigitte celeste clara cristina ' +
+  'dora doris edith elisa eloisa emperatriz evelyn fatima francia hortensia ivon ivonne josefa josefina leticia lizeth lisseth lizet ' +
+  'luciana mabel mireya nora pamela regina rebeca sabrina samantha sharon tiffany valery zoila faisully libelly miguelina maribel ' +
+  'alexandra angie anyi arelis belly carmenza deyanira dilia dina edna eunice gina greys heidy jhoana jhojana karla keila leidi ' +
+  'lorely luzmary mariluz marilyn mirian nayeli nelcy nury rosaura sulay yajaira yurley yuliza zuleima belkis dorys layla leila marily'
+).split(' ');
+
+const NOMBRES_HOMBRE_ = (
+  'jose juan carlos luis jorge manuel miguel pedro pablo andres felipe david daniel diego alejandro sebastian santiago mateo matias ' +
+  'nicolas samuel gabriel rafael fernando francisco javier jaime jairo jhon john jhoan johan yohan jhonatan jonathan jonatan johnny jhonny ' +
+  'alexander alberto alfonso alfredo alvaro antonio armando arnulfo arturo augusto bernardo brayan brian bryan camilo cesar cristian ' +
+  'christian cristobal dario edgar edison edwin efrain eduardo elkin emilio enrique ernesto esteban fabian fabio faber federico freddy ' +
+  'fredy german gerardo gilberto gonzalo guillermo gustavo hector hernan hernando holman horacio hugo humberto ignacio isaac ismael ivan ' +
+  'jaider jader jefferson yeferson jeferson jesus joaquin julian julio kevin leonardo leandro lisandro lucas luciano marco marcos mario ' +
+  'martin mauricio maximiliano milton moises nelson norberto octavio omar orlando oscar pascual raul ramiro ramon reinaldo ricardo roberto ' +
+  'rodrigo rodolfo ruben salvador sergio silvio teodoro tomas ulises uriel victor wilson william willian wilmer yesid yeison jeison yair ' +
+  'harold harrison heider henry herney hoover americo didier duvan duban dairo darwin deiby deivis edier eider elmer emerson faiver ' +
+  'ferney gildardo hamilton hermes james jhojan kaleth libardo marlon nestor noe ovidio pastor rigoberto robinson rogelio rosendo saul ' +
+  'segundo silvestre stiven steven estiven teofilo valentin wilmar wilfredo yamid yerson albeiro alirio aldemar abel adolfo agustin alonso ' +
+  'anderson angel aurelio baltazar benjamin bladimir vladimir carmelo celso ciro clemente dagoberto damian danilo edilberto eliecer elias ' +
+  'emiro eugenio ezequiel fidel florentino gregorio heriberto jacinto jeronimo joel jonny josue leon leonel lorenzo marcelino marcelo ' +
+  'mariano maximo napoleon nicanor oliverio osvaldo placido porfirio reynaldo samir simon tobias wilber yhon yeiner yorman jhan jhordan ' +
+  'jordan brandon kener luber ever elvis dennis adrian aldair cristhian dilan dylan emanuel emmanuel erick eric esneider ' +
+  'gerson harvey jair jhonier yonier jorman keiner maicol michael maycol miller neider nixon oswaldo sneider wilder yilmer yordi yordy ' +
+  'edgardo alcides arley duberney anibal benito bayron byron cristo deiver eduar elver evaristo eusebio feliciano ' +
+  'gentil hugo isidro jaminton jhonson leider luciano maikel mairon nolberto onofre patricio reinel sigifredo ' +
+  'virgilio wbeimar yeisson yhonatan eider giovanny geovany giovanni yovany jhovany'
+).split(' ');
+
+// Unisex o ambiguos: nunca se clasifican solos (aunque la terminación sugiera algo).
+const NOMBRES_AMBIGUOS_ = ('alex cruz yuri guadalupe trinidad reyes yury sasha francis andy dany dani karol rene ariel cris kris yan jean ' +
+  'alexis noel nikita darcy dayan elian ofir norby amalfi').split(' ');
+
+// Palabras que no son nombres: tratamientos y partículas ("María del Rosario", "Sra. Luz").
+const PALABRAS_SALTAR_ = 'sr sra srta don dona dr dra lic prof de del la las los y'.split(' ');
+
+let mapaNombres_ = null;
+function mapaNombres_get_() {
+  if (mapaNombres_) return mapaNombres_;
+  const m = {};
+  NOMBRES_MUJER_.forEach(function (n) { if (n) m[n] = 'M'; });
+  NOMBRES_HOMBRE_.forEach(function (n) { if (n) m[n] = m[n] && m[n] !== 'H' ? '?' : 'H'; });
+  NOMBRES_AMBIGUOS_.forEach(function (n) { m[n] = '?'; });
+  mapaNombres_ = m;
+  return m;
+}
+
+function palabrasNombre_(nombre) {
+  return normalizarTexto_(nombre).replace(/[^a-zñ\s]/g, ' ').split(/\s+/)
+    .filter(function (p) { return p && PALABRAS_SALTAR_.indexOf(p) < 0; })
+    .map(function (p) { return p === 'ma' ? 'maria' : p; });
+}
+
+// Deducción por terminación (solo para nombres que no están en la lista).
+function generoPorTerminacion_(p) {
+  if (p.length < 3) return '';
+  if (/(a|eth|ith|yth|ely|elly|ully|illy|ally|ys|dis)$/.test(p)) return 'M';
+  if (/(o|son|ton|ier|man|ar)$/.test(p)) return 'H';
+  return '';
+}
+
+// Orden de la columna de nombres: 'nombre' (nombre primero) o 'apellido' (apellido primero), por votación.
+function ordenNombres_(nombres) {
+  const m = mapaNombres_get_();
+  let primero = 0, despues = 0;
+  nombres.forEach(function (n) {
+    const p = palabrasNombre_(n);
+    if (p.length < 2) return;
+    if (m[p[0]] === 'H' || m[p[0]] === 'M') primero++;
+    else if (p.slice(1).some(function (x) { return m[x] === 'H' || m[x] === 'M'; })) despues++;
+  });
+  return despues > primero ? 'apellido' : 'nombre';
+}
+
+// { g: 'H' | 'M' | '', conf: 'alta' | 'baja' | 'sin', motivo }
+function deducirGenero_(nombre, orden) {
+  const m = mapaNombres_get_();
+  let p = palabrasNombre_(nombre);
+  if (!p.length) return { g: '', conf: 'sin', motivo: 'sin nombre' };
+  // Apellido primero: "Mosquera Rivas Luz Marina" -> los nombres empiezan después de los apellidos.
+  if (orden === 'apellido' && p.length >= 2) {
+    const desde = p.length >= 4 ? 2 : 1;
+    let k = -1;
+    for (let i = 1; i < p.length; i++) if (m[p[i]] === 'H' || m[p[i]] === 'M') { k = i; break; }
+    p = p.slice(k >= 0 ? k : desde);
+  }
+  const uno = p[0], dos = p.length >= 3 || orden === 'apellido' ? p[1] : undefined;
+  const g1 = m[uno], g2 = dos ? m[dos] : undefined;
+  if (g1 === 'H' || g1 === 'M') {
+    // Compuesto con géneros opuestos ("Luz Carlos"): raro; se pide revisar. María/José segundo es normal.
+    if ((g2 === 'H' || g2 === 'M') && g2 !== g1 && ['maria', 'jose', 'rosario'].indexOf(dos) < 0 && uno !== 'maria' && uno !== 'jose') {
+      return { g: g1, conf: 'baja', motivo: 'nombres de distinto género' };
+    }
+    return { g: g1, conf: 'alta', motivo: 'nombre conocido' };
+  }
+  if (g1 !== '?') {
+    const t = generoPorTerminacion_(uno);
+    if (t) return { g: t, conf: 'baja', motivo: 'por la terminación' };
+  }
+  // Primer nombre unisex o desconocido: si el segundo nombre es claro, se usa con baja confianza.
+  if (g2 === 'H' || g2 === 'M') return { g: g2, conf: 'baja', motivo: 'por el segundo nombre' };
+  return { g: '', conf: 'sin', motivo: g1 === '?' ? 'nombre unisex' : 'nombre desconocido' };
+}
+
+// "H", "hombre", "masculino" -> H; "M", "mujer", "F", "femenino" -> M.
+function limpiarGenero_(v) {
+  const t = normalizarTexto_(v);
+  if (/^(h|hombre|masculino|masc)$/.test(t)) return 'H';
+  if (/^(m|mujer|f|femenino|fem)$/.test(t)) return 'M';
+  return '';
+}
+
+function buscarHojaGenero_(ss) {
+  const hojas = ss.getSheets ? ss.getSheets() : [];
+  for (let i = 0; i < hojas.length; i++) if (normalizarTexto_(hojas[i].getName()) === 'genero') return hojas[i];
+  return ss.getSheetByName(HOJA_GENERO);
+}
+
+// Correcciones manuales: { CODIGO: 'H' | 'M' }
+function leerCorreccionesGenero_(ss) {
+  const hoja = buscarHojaGenero_(ss);
+  const r = {};
+  if (!hoja || hoja.getLastRow() < 2) return r;
+  hoja.getRange(2, 1, hoja.getLastRow() - 1, 2).getValues().forEach(function (f) {
+    const c = limpiarCodigo_(f[0]), g = limpiarGenero_(f[1]);
+    if (c && g) r[c] = g;
+  });
+  return r;
+}
+
+// Añade a cada participante su género (p.g, p.conf, p.motivo, p.revisado) y deja la cuenta en pc.genero.
+function clasificarParticipantes_(pc, ss, nombresBase) {
+  const orden = ordenNombres_(nombresBase);
+  const corr = leerCorreccionesGenero_(ss);
+  let mujeres = 0, hombres = 0, sin = 0, baja = 0;
+  pc.participantes.forEach(function (p) {
+    const d = deducirGenero_(p.nombreBase || p.nombre, orden);
+    p.deducido = d.g; p.conf = d.conf; p.motivo = d.motivo;
+    p.revisado = corr[p.codigo] || '';
+    p.g = p.revisado || d.g;
+    if (p.g === 'M') mujeres++; else if (p.g === 'H') hombres++; else sin++;
+    if (!p.revisado && d.conf === 'baja') baja++;
+  });
+  pc.genero = { orden: orden, mujeres: mujeres, hombres: hombres, sinClasificar: sin, bajaConfianza: baja, correcciones: Object.keys(corr).length };
+  return pc;
+}
+
+function limpiarFiltro_(f) {
+  const t = normalizarTexto_(f);
+  return Object.prototype.hasOwnProperty.call(FILTROS_SORTEO, t) ? t : 'todos';
+}
+
+function pasaFiltro_(p, filtro) {
+  const g = FILTROS_SORTEO[filtro || 'todos'];
+  return !g || p.g === g;   // en un sorteo filtrado no participan los sin clasificar
+}
+
+function nombreFiltro_(filtro) {
+  return filtro === 'mujeres' ? 'Solo mujeres' : filtro === 'hombres' ? 'Solo hombres' : 'Todos';
+}
+
+// Participantes (con ingreso) sin clasificar o de baja confianza, y los ya revisados a mano entre ellos.
+function listaRevisarGenero_(pc) {
+  return pc.participantes
+    .filter(function (p) { return p.conf !== 'alta' || p.revisado; })
+    .map(function (p) { return { codigo: p.codigo, nombre: p.nombreBase || p.nombre, deducido: p.deducido, conf: p.conf, motivo: p.motivo, revisado: p.revisado }; })
+    .sort(function (a, b) { return (a.revisado ? 1 : 0) - (b.revisado ? 1 : 0) || (a.conf === 'sin' ? 0 : 1) - (b.conf === 'sin' ? 0 : 1) || a.nombre.localeCompare(b.nombre); });
+}
+
+// Guarda (o cambia) la corrección de un código en la hoja "Género". Solo códigos que están en "Base de datos".
+function corregirGenero_(codigoDado, generoDado) {
+  const codigo = limpiarCodigo_(codigoDado), g = limpiarGenero_(generoDado);
+  if (!codigo) return { estado: 'error', mensaje: 'Falta el código.' };
+  if (!g) return { estado: 'error', mensaje: 'El género debe ser H (hombre) o M (mujer).' };
+  const base = leerHoja_(abrirHoja_());
+  if (!base.filas.some(function (f) { return limpiarCodigo_(f[COL_CODIGO - 1]) === codigo; })) {
+    return { estado: 'no_existe', mensaje: 'El código ' + codigo + ' no está en "Base de datos".' };
+  }
+  conLockSorteo_(function () {
+    const ss = SpreadsheetApp.openById(ID_HOJA);
+    let hoja = buscarHojaGenero_(ss);
+    if (!hoja) {
+      hoja = ss.insertSheet(HOJA_GENERO);
+      hoja.appendRow(ENCABEZADOS_GENERO);
+      hoja.setFrozenRows(1);
+    }
+    let fila = -1;
+    if (hoja.getLastRow() >= 2) {
+      const cods = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+      for (let i = 0; i < cods.length; i++) if (limpiarCodigo_(cods[i][0]) === codigo) { fila = i + 2; break; }
+    }
+    if (fila > 0) hoja.getRange(fila, 2).setValue(g);
+    else hoja.appendRow([codigo, g]);
+    SpreadsheetApp.flush();
+  });
+  const r = infoSorteo_();
+  if (r.estado === 'sorteo') r.corregido = { codigo: codigo, genero: g };
+  return r;
 }

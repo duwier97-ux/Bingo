@@ -523,7 +523,8 @@
       confetiSorteo.detener();
       sorteoMostrado = uid;
       $('sorteoPremioTv').textContent = a.premio;
-      $('sorteoEntre').textContent = 'Entre ' + a.participantes + (a.participantes === 1 ? ' participante' : ' participantes') + ' con ingreso registrado';
+      var quienes = a.filtro === 'mujeres' ? (a.participantes === 1 ? ' mujer' : ' mujeres') : a.filtro === 'hombres' ? (a.participantes === 1 ? ' hombre' : ' hombres') : (a.participantes === 1 ? ' participante' : ' participantes');
+      $('sorteoEntre').textContent = 'Entre ' + a.participantes + quienes + ' con ingreso registrado';
       $('sorteoCapa').classList.add('visible');
       alFrente('sorteo');
       // Al abrir la página (o si ya se vio) se muestra el resultado directo, sin girar ni sonar.
