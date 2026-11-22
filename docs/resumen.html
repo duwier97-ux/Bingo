@@ -40,7 +40,7 @@
 
     main {
       height: 80vh; padding: 2.4vh 2.5vw 1vh;
-      display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: 1.15fr 1fr; gap: 2.2vh 1.6vw;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 1.1fr 1fr; gap: 2.2vh 1.6vw;
     }
     .tarjeta {
       position: relative; min-width: 0; min-height: 0; overflow: hidden;
@@ -49,8 +49,7 @@
       background: rgba(15, 23, 42, .86); border: .3vh solid rgba(251, 191, 36, .45);
       box-shadow: 0 1vh 3vh rgba(0, 0, 0, .5), inset 0 .6vh 0 var(--c);
     }
-    .tarjeta.grande { grid-column: span 3; }
-    .tarjeta.media { grid-column: span 2; }
+    .tarjeta.grande { grid-column: 1 / -1; }
     .tarjeta .icono { font-size: 5vh; line-height: 1; }
     .tarjeta .rotulo { margin-top: .8vh; font-size: 3.4vh; font-weight: 800; color: #fde68a; letter-spacing: .05vw; }
     .tarjeta .valor {
@@ -77,8 +76,6 @@
     }
     @keyframes flota { 0% { opacity: 0; transform: translateY(2vh) scale(.6); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-5vh) scale(1); } }
 
-    .barra { width: 70%; height: 1.6vh; margin-top: 1.4vh; border-radius: 99px; background: rgba(51, 65, 85, .8); overflow: hidden; }
-    .barra div { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #7c3aed, #c4b5fd); transition: width 1.2s ease-out; }
 
     footer {
       height: 9vh; display: flex; align-items: center; justify-content: space-between; gap: 1.5vw; padding: 0 2.5vw 1.2vh;
@@ -133,7 +130,6 @@
       .tarjeta.grande .valor { font-size: min(22vw, 96px); }
       .tarjeta.media .valor { font-size: min(11vw, 52px); }
       .tarjeta .nota { font-size: 15px; margin-top: 6px; }
-      .barra { height: 10px; margin-top: 10px; }
       .mas { font-size: 26px; top: 12px; right: 16px; }
       footer { height: auto; flex-direction: column; align-items: stretch; gap: 12px; padding: 0 16px 24px; }
       #estadoAct { font-size: 15px; justify-content: center; }
@@ -156,13 +152,6 @@
       <div class="rotulo">Tablas vendidas</div>
       <div class="valor" id="vTablas">–</div>
       <div class="nota" id="nTablas">&nbsp;</div>
-    </section>
-    <section class="tarjeta grande" id="tjAsistentes" style="--c:#c4b5fd">
-      <div class="icono" aria-hidden="true">🙋</div>
-      <div class="rotulo">Asistentes que ya ingresaron</div>
-      <div class="valor" id="vAsistentes">–</div>
-      <div class="barra"><div id="barraAsistentes"></div></div>
-      <div class="nota" id="nAsistentes">&nbsp;</div>
     </section>
     <section class="tarjeta media" id="tjRecaudado" style="--c:#86efac">
       <div class="icono" aria-hidden="true">💰</div>
@@ -238,7 +227,7 @@
 
     var clave = '';
     var config = leerConfig();
-    var datos = null;          // { tablasVendidas, asistentes } de la última consulta buena
+    var datos = null;          // { tablasVendidas } de la última consulta buena
     var ultimaOk = 0;          // Date.now() de la última consulta buena
     var ultimoError = '';
     var temporizador = null, enCurso = false;
@@ -369,7 +358,7 @@
 
     function recibir(r, primera) {
       var antes = datos;
-      datos = { tablasVendidas: Number(r.tablasVendidas) || 0, asistentes: Number(r.asistentes) || 0 };
+      datos = { tablasVendidas: Number(r.tablasVendidas) || 0 };
       ultimaOk = Date.now();
       ultimoError = '';
       $('estadoAct').classList.remove('cargando');
@@ -384,7 +373,7 @@
       var t = datos ? datos.tablasVendidas : 0;
       var recaudado = t * config.precio;
       return {
-        tablas: t, asistentes: datos ? datos.asistentes : 0,
+        tablas: t,
         recaudado: recaudado, gastos: config.gastos, saldo: recaudado - config.gastos
       };
     }
@@ -392,7 +381,6 @@
       if (!datos) return;
       var c = cifras();
       animar('vTablas', 'tjTablas', c.tablas, NUM.format, conMas);
-      animar('vAsistentes', 'tjAsistentes', c.asistentes, NUM.format, conMas);
       animar('vRecaudado', 'tjRecaudado', c.recaudado, COP.format, false);
       animar('vGastos', 'tjGastos', c.gastos, COP.format, false);
       animar('vSaldo', 'tjSaldo', c.saldo, COP.format, false);
@@ -402,9 +390,6 @@
       $('nRecaudado').appendChild(document.createTextNode(NUM.format(c.tablas) + ' × '));
       var b = document.createElement('b'); b.textContent = COP.format(config.precio); $('nRecaudado').appendChild(b);
       $('nRecaudado').appendChild(document.createTextNode(' por tabla'));
-      var pct = c.tablas ? Math.min(100, Math.round(c.asistentes * 100 / c.tablas)) : 0;
-      $('nAsistentes').textContent = pct + ' % de ' + NUM.format(c.tablas) + ' tablas · faltan ' + NUM.format(Math.max(0, c.tablas - c.asistentes));
-      $('barraAsistentes').style.width = pct + '%';
       $('nSaldo').textContent = c.saldo < 0 ? 'Faltan ' + COP.format(-c.saldo) + ' para cubrir los premios' : 'Recaudado menos gastos';
     }
 
@@ -577,9 +562,7 @@
         s.addText(valor, { x: x + 0.1, y: y + 0.48, w: w - 0.2, h: grande ? 0.95 : 0.62, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: grande ? 54 : 26, bold: true, color: color, fit: 'shrink', margin: 0 });
         if (nota) s.addText(nota, { x: x + 0.1, y: y + h - 0.42, w: w - 0.2, h: 0.32, align: 'center', valign: 'middle', fontFace: FUENTE, fontSize: 10.5, color: 'CBD5E1', margin: 0 });
       }
-      var pct = c.tablas ? Math.min(100, Math.round(c.asistentes * 100 / c.tablas)) : 0;
-      tarjeta(0.35, 1.2, 4.55, 1.95, '60A5FA', 'Tablas vendidas', NUM.format(c.tablas), 'Personas registradas con su código', true);
-      tarjeta(5.1, 1.2, 4.55, 1.95, 'C4B5FD', 'Asistentes que ya ingresaron', NUM.format(c.asistentes), pct + ' % de ' + NUM.format(c.tablas) + ' tablas', true);
+      tarjeta(0.35, 1.2, 9.3, 1.95, '60A5FA', 'Tablas vendidas', NUM.format(c.tablas), 'Personas registradas con su código', true);
       var saldoColor = c.saldo < 0 ? 'F87171' : 'FDE68A';
       tarjeta(0.35, 3.35, 2.95, 1.6, '86EFAC', 'Total recaudado', COP.format(c.recaudado), NUM.format(c.tablas) + ' × ' + COP.format(config.precio) + ' por tabla');
       tarjeta(3.525, 3.35, 2.95, 1.6, 'FCA5A5', 'Gastos en premios', COP.format(c.gastos), 'Total de premios del evento');
